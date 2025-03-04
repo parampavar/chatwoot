@@ -16,6 +16,15 @@ json.timezone resource.timezone
 json.callback_webhook_url resource.callback_webhook_url
 json.allow_messages_after_resolved resource.allow_messages_after_resolved
 json.lock_to_single_conversation resource.lock_to_single_conversation
+json.sender_name_type resource.sender_name_type
+json.business_name resource.business_name
+
+if resource.portal.present?
+  json.help_center do
+    json.name resource.portal.name
+    json.slug resource.portal.slug
+  end
+end
 
 ## Channel specific settings
 ## TODO : Clean up and move the attributes into channel sub section
@@ -62,8 +71,11 @@ if resource.email?
     json.imap_address resource.channel.try(:imap_address)
     json.imap_port resource.channel.try(:imap_port)
     json.imap_enabled resource.channel.try(:imap_enabled)
-    json.microsoft_reauthorization resource.channel.try(:microsoft?) && resource.channel.try(:provider_config).empty?
     json.imap_enable_ssl resource.channel.try(:imap_enable_ssl)
+
+    if resource.channel.try(:microsoft?) || resource.channel.try(:google?) || resource.channel.try(:legacy_google?)
+      json.reauthorization_required resource.channel.try(:provider_config).empty? || resource.channel.try(:reauthorization_required?)
+    end
   end
 
   ## SMTP

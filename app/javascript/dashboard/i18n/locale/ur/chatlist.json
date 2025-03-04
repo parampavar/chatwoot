@@ -6,6 +6,7 @@
     "LIST": {
       "404": "اس گروپ میں کوئی فعال گفتگو نہیں ہے۔."
     },
+    "FAILED_TO_SEND": "Failed to send",
     "TAB_HEADING": "مکالمات",
     "MENTION_HEADING": "تذکرہ",
     "UNATTENDED_HEADING": "Unattended",
@@ -35,6 +36,48 @@
         "TEXT": "تمام"
       }
     },
+    "VIEW_FILTER": "دیکھیں",
+    "SORT_TOOLTIP_LABEL": "Sort conversations",
+    "CHAT_SORT": {
+      "STATUS": "اسٹیٹس",
+      "ORDER_BY": "Order by"
+    },
+    "CHAT_TIME_STAMP": {
+      "CREATED": {
+        "LATEST": "Created",
+        "OLDEST": "Created at:"
+      },
+      "LAST_ACTIVITY": {
+        "NOT_ACTIVE": "Last activity:",
+        "ACTIVE": "Last activity"
+      }
+    },
+    "SORT_ORDER_ITEMS": {
+      "last_activity_at_asc": {
+        "TEXT": "Last activity: Oldest first"
+      },
+      "last_activity_at_desc": {
+        "TEXT": "Last activity: Newest first"
+      },
+      "created_at_desc": {
+        "TEXT": "Created at: Newest first"
+      },
+      "created_at_asc": {
+        "TEXT": "Created at: Oldest first"
+      },
+      "priority_desc": {
+        "TEXT": "Priority: Highest first"
+      },
+      "priority_asc": {
+        "TEXT": "Priority: Lowest first"
+      },
+      "waiting_since_asc": {
+        "TEXT": "Pending Response: Longest first"
+      },
+      "waiting_since_desc": {
+        "TEXT": "Pending Response: Shortest first"
+      }
+    },
     "ATTACHMENTS": {
       "image": {
         "CONTENT": "تصویری پیغام"
@@ -51,8 +94,32 @@
       "location": {
         "CONTENT": "مقام"
       },
+      "ig_reel": {
+        "CONTENT": "Instagram Reel"
+      },
       "fallback": {
         "CONTENT": "نے ایک یو آر ایل بھیجا"
+      },
+      "contact": {
+        "CONTENT": "Shared contact"
+      }
+    },
+    "CHAT_SORT_BY_FILTER": {
+      "TITLE": "Sort conversation",
+      "DROPDOWN_TITLE": "Sort by",
+      "ITEMS": {
+        "LATEST": {
+          "NAME": "Last activity at",
+          "LABEL": "Last activity"
+        },
+        "CREATED_AT": {
+          "NAME": "Created at",
+          "LABEL": "Created at"
+        },
+        "LAST_USER_MESSAGE_AT": {
+          "NAME": "Last user message at",
+          "LABEL": "Last message"
+        }
       }
     },
     "RECEIVED_VIA_EMAIL": "ای میل کے ذریعے موصول ہوا۔",
@@ -66,6 +133,7 @@
     "NO_CONTENT": "کوئی مواد دستیاب نہیں ہے۔",
     "HIDE_QUOTED_TEXT": "اقتباس شدہ متن کو چھپائیں۔",
     "SHOW_QUOTED_TEXT": "اقتباس شدہ متن دکھائیں۔",
-    "MESSAGE_READ": "پڑھیں"
+    "MESSAGE_READ": "پڑھیں",
+    "SENDING": "Sending"
   }
 }

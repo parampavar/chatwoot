@@ -3,7 +3,8 @@
     "HEADER": "מאפיינים בהתאמה אישית",
     "HEADER_BTN_TXT": "הוסף מאפיין מותאם אישית",
     "LOADING": "שולף מאפיינים מותאמים אישית",
-    "SIDEBAR_TXT": "<p><b>Custom Attributes</b> <p>A custom attribute tracks facts about your contacts/conversation — like the subscription plan, or when they ordered the first item etc. <br /><br />For creating a Custom Attribute, just click on the <b>Add Custom Attribute.</b> You can also edit or delete an existing  Custom Attribute by clicking on the Edit or Delete button.</p>",
+    "DESCRIPTION": "A custom attribute tracks additional details about your contacts or conversations—such as the subscription plan or the date of their first purchase. You can add different types of custom attributes, such as text, lists, or numbers, to capture the specific information you need.",
+    "LEARN_MORE": "Learn more about custom attributes",
     "ADD": {
       "TITLE": "הוסף מאפיין מותאם אישית",
       "SUBMIT": "צור",
@@ -11,12 +12,12 @@
       "FORM": {
         "NAME": {
           "LABEL": "שם תצוגה",
-          "PLACEHOLDER": "Enter custom attribute display name",
+          "PLACEHOLDER": "הכנס שם לשדה המותאם",
           "ERROR": "שם שדה חובה"
         },
         "DESC": {
           "LABEL": "תיאור",
-          "PLACEHOLDER": "Enter custom attribute description",
+          "PLACEHOLDER": "הכנס תיאור לשדה המותאם",
           "ERROR": "נדרש תיאור"
         },
         "MODEL": {
@@ -29,49 +30,60 @@
           "PLACEHOLDER": "אנא בחר סוג",
           "ERROR": "סוג הינו שדה חובה",
           "LIST": {
-            "LABEL": "List Values",
-            "PLACEHOLDER": "Please enter value and press enter key",
+            "LABEL": "רשימת ערכים",
+            "PLACEHOLDER": "נא הכנס ערך תקין ולחץ על Enter",
             "ERROR": "חובה להזין לפחות ערך אחד"
           }
         },
         "KEY": {
           "LABEL": "מפתח",
-          "PLACEHOLDER": "Enter custom attribute key",
+          "PLACEHOLDER": "הכנס מפתח ייחודי לשדה המותאם",
           "ERROR": "מפתח הוא שדה חובה",
           "IN_VALID": "מפתח אינו חוקי"
+        },
+        "REGEX_PATTERN": {
+          "LABEL": "Regex Pattern",
+          "PLACEHOLDER": "Please enter custom attribute regex pattern. (Optional)"
+        },
+        "REGEX_CUE": {
+          "LABEL": "Regex Cue",
+          "PLACEHOLDER": "Please enter regex pattern hint. (Optional)"
+        },
+        "ENABLE_REGEX": {
+          "LABEL": "Enable regex validation"
         }
       },
       "API": {
-        "SUCCESS_MESSAGE": "Custom Attribute added successfully!",
-        "ERROR_MESSAGE": "Could not create a Custom Attribute. Please try again later."
+        "SUCCESS_MESSAGE": "שדה מותאם התווסף בהצלחה!",
+        "ERROR_MESSAGE": "לא ניתן היה ליצור שדה מותאם, אנא נסה שוב מאוחר יותר."
       }
     },
     "DELETE": {
       "BUTTON_TEXT": "מחק",
       "API": {
-        "SUCCESS_MESSAGE": "Custom Attribute deleted successfully.",
+        "SUCCESS_MESSAGE": "שדה מותאם נמחק בהצלחה.",
         "ERROR_MESSAGE": "לא ניתן למחוק את המאפיין המותאם אישית. נסה שנית."
       },
       "CONFIRM": {
-        "TITLE": "האם אתה בטוח רוצה למחוק - %{attributeName}",
+        "TITLE": "האם אתה בטוח רוצה למחוק - {attributeName}",
         "PLACE_HOLDER": "אנא הקלד {attributeName} כדי לאשר",
-        "MESSAGE": "Deleting will remove the custom attribute",
+        "MESSAGE": "המחיקה תסיר את השדה המותאם",
         "YES": "מחק ",
         "NO": "ביטול"
       }
     },
     "EDIT": {
-      "TITLE": "Edit Custom Attribute",
+      "TITLE": "ערוך שדה מותאם",
       "UPDATE_BUTTON_TEXT": "עדכן",
       "TYPE": {
         "LIST": {
           "LABEL": "רשימת ערכים",
-          "PLACEHOLDER": "Please enter values and press enter key"
+          "PLACEHOLDER": "אנא הכנס ערכים ולחץ Enter"
         }
       },
       "API": {
-        "SUCCESS_MESSAGE": "Custom Attribute updated successfully",
-        "ERROR_MESSAGE": "There was an error updating custom attribute, please try again"
+        "SUCCESS_MESSAGE": "שדה מותאם עודכן בהצלחה",
+        "ERROR_MESSAGE": "אירעה שגיאה בעדכון השדה המותאם, אנא נסה שנית"
       }
     },
     "TABS": {
@@ -80,19 +92,30 @@
       "CONTACT": "איש קשר"
     },
     "LIST": {
-      "TABLE_HEADER": [
-        "שם",
-        "תיאור",
-        "סוג",
-        "מפתח"
-      ],
+      "TABLE_HEADER": {
+        "NAME": "שם",
+        "DESCRIPTION": "תיאור",
+        "TYPE": "סוג",
+        "KEY": "מפתח"
+      },
       "BUTTONS": {
         "EDIT": "ערוך",
         "DELETE": "מחק"
       },
       "EMPTY_RESULT": {
-        "404": "There are no custom attributes created",
-        "NOT_FOUND": "There are no custom attributes configured"
+        "404": "לא קיימים שדות מותאמים",
+        "NOT_FOUND": "לא קיימים שדות מותאמים"
+      },
+      "REGEX_PATTERN": {
+        "LABEL": "Regex Pattern",
+        "PLACEHOLDER": "Please enter custom attribute regex pattern. (Optional)"
+      },
+      "REGEX_CUE": {
+        "LABEL": "Regex Cue",
+        "PLACEHOLDER": "Please enter regex pattern hint. (Optional)"
+      },
+      "ENABLE_REGEX": {
+        "LABEL": "Enable regex validation"
       }
     }
   }

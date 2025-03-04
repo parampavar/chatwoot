@@ -848,6 +848,16 @@
         "security": [
 
         ],
+        "parameters": [
+          {
+            "name": "data",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/public_conversation_create_payload"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Success",
@@ -880,6 +890,149 @@
           },
           "401": {
             "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/public/api/v1/inboxes/{inbox_identifier}/contacts/{contact_identifier}/conversations/{conversation_id}": {
+      "parameters": [
+        {
+          "$ref": "#/parameters/public_inbox_identifier"
+        },
+        {
+          "$ref": "#/parameters/public_contact_identifier"
+        },
+        {
+          "$ref": "#/parameters/conversation_id"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Conversations API"
+        ],
+        "operationId": "get-single-conversation",
+        "summary": "Get a single conversation",
+        "description": "Retrieves the details of a specific conversation",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/public_conversation"
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Conversation not found"
+          }
+        }
+      }
+    },
+    "/public/api/v1/inboxes/{inbox_identifier}/contacts/{contact_identifier}/conversations/{conversation_id}/toggle_status": {
+      "parameters": [
+        {
+          "$ref": "#/parameters/public_inbox_identifier"
+        },
+        {
+          "$ref": "#/parameters/public_contact_identifier"
+        },
+        {
+          "$ref": "#/parameters/conversation_id"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Conversations API"
+        ],
+        "operationId": "resolve-conversation",
+        "summary": "Resolve a conversation",
+        "description": "Marks a conversation as resolved",
+        "responses": {
+          "200": {
+            "description": "Conversation resolved successfully",
+            "schema": {
+              "$ref": "#/definitions/public_conversation"
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Conversation not found"
+          }
+        }
+      }
+    },
+    "/public/api/v1/inboxes/{inbox_identifier}/contacts/{contact_identifier}/conversations/{conversation_id}/toggle_typing": {
+      "parameters": [
+        {
+          "$ref": "#/parameters/public_inbox_identifier"
+        },
+        {
+          "$ref": "#/parameters/public_contact_identifier"
+        },
+        {
+          "$ref": "#/parameters/conversation_id"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Conversations API"
+        ],
+        "operationId": "toggle-typing-status",
+        "summary": "Toggle typing status",
+        "description": "Toggles the typing status in a conversation",
+        "parameters": [
+          {
+            "name": "typing_status",
+            "in": "query",
+            "required": true,
+            "type": "string",
+            "description": "Typing status, either 'on' or 'off'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Typing status toggled successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Conversation not found"
+          }
+        }
+      }
+    },
+    "/public/api/v1/inboxes/{inbox_identifier}/contacts/{contact_identifier}/conversations/{conversation_id}/update_last_seen": {
+      "parameters": [
+        {
+          "$ref": "#/parameters/public_inbox_identifier"
+        },
+        {
+          "$ref": "#/parameters/public_contact_identifier"
+        },
+        {
+          "$ref": "#/parameters/conversation_id"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Conversations API"
+        ],
+        "operationId": "update-last-seen",
+        "summary": "Update last seen",
+        "description": "Updates the last seen time of the contact in a conversation",
+        "responses": {
+          "200": {
+            "description": "Last seen updated successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Conversation not found"
           }
         }
       }
@@ -996,6 +1149,102 @@
           },
           "401": {
             "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/accounts/{account_id}/contacts/{contact_identifier}/labels": {
+      "parameters": [
+        {
+          "$ref": "#/parameters/account_id"
+        },
+        {
+          "$ref": "#/parameters/public_contact_identifier"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Contact Labels"
+        ],
+        "operationId": "list-all-labels-of-a-contact",
+        "summary": "List Labels",
+        "description": "Lists all the labels of a contact",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/contact_labels"
+            }
+          },
+          "404": {
+            "description": "Contact not found"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Contact Labels"
+        ],
+        "operationId": "contact-add-labels",
+        "summary": "Add Labels",
+        "description": "Add labels to a contact. Note that this API would overwrite the existing list of labels associated to the conversation.",
+        "parameters": [
+          {
+            "name": "data",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "labels": {
+                  "type": "array",
+                  "description": "Array of labels (comma-separated strings)",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/contact_labels"
+            }
+          },
+          "404": {
+            "description": "Contact not found"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/survey/responses/{conversation_uuid}": {
+      "parameters": [
+        {
+          "$ref": "#/parameters/conversation_uuid"
+        }
+      ],
+      "get": {
+        "tags": [
+          "CSAT Survey Page"
+        ],
+        "operationId": "get-csat-survey-page",
+        "summary": "Get CSAT survey page",
+        "description": "You can redirect the client to this URL, instead of implementing the CSAT survey component yourself.",
+        "security": [
+
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
           }
         }
       }
@@ -2014,63 +2263,68 @@
             "type": "integer"
           },
           {
-            "name": "payload",
+            "name": "body",
             "in": "body",
             "required": true,
             "schema": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "attribute_key": {
-                    "type": "string",
-                    "description": "filter attribute name"
+              "type": "object",
+              "properties": {
+                "payload": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "attribute_key": {
+                        "type": "string",
+                        "description": "filter attribute name"
+                      },
+                      "filter_operator": {
+                        "type": "string",
+                        "description": "filter operator name",
+                        "enum": [
+                          "equal_to",
+                          "not_equal_to",
+                          "contains",
+                          "does_not_contain"
+                        ]
+                      },
+                      "values": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "array of the attribute values to filter"
+                      },
+                      "query_operator": {
+                        "type": "string",
+                        "description": "query operator name",
+                        "enum": [
+                          "AND",
+                          "OR"
+                        ]
+                      }
+                    }
                   },
-                  "filter_operator": {
-                    "type": "string",
-                    "description": "filter operator name",
-                    "enum": [
-                      "equal_to",
-                      "not_equal_to",
-                      "contains",
-                      "does_not_contain"
-                    ]
-                  },
-                  "values": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
+                  "example": [
+                    {
+                      "attribute_key": "name",
+                      "filter_operator": "equal_to",
+                      "values": [
+                        "en"
+                      ],
+                      "query_operator": "AND"
                     },
-                    "description": "array of the attribute values to filter"
-                  },
-                  "query_operator": {
-                    "type": "string",
-                    "description": "query operator name",
-                    "enum": [
-                      "AND",
-                      "OR"
-                    ]
-                  }
+                    {
+                      "attribute_key": "country_code",
+                      "filter_operator": "equal_to",
+                      "values": [
+                        "us"
+                      ],
+                      "query_operator": null
+                    }
+                  ]
                 }
-              },
-              "example": [
-                {
-                  "attribute_key": "name",
-                  "filter_operator": "equal_to",
-                  "values": [
-                    "en"
-                  ],
-                  "query_operator": "AND"
-                },
-                {
-                  "attribute_key": "country_code",
-                  "filter_operator": "equal_to",
-                  "values": [
-                    "us"
-                  ],
-                  "query_operator": "nil"
-                }
-              ]
+              }
             }
           }
         ],
@@ -2396,6 +2650,212 @@
         }
       }
     },
+    "/api/v1/accounts/{account_id}/portals": {
+      "parameters": [
+        {
+          "$ref": "#/parameters/account_id"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Help Center"
+        ],
+        "operationId": "add-new-portal-to-account",
+        "summary": "Add a new portal",
+        "description": "Add a new portal to account",
+        "security": [
+          {
+            "userApiKey": [
+
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "data",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/portal_create_update_payload"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/portal"
+            }
+          },
+          "403": {
+            "description": "Access denied"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Help Center"
+        ],
+        "operationId": "get-portal",
+        "summary": "List all portals in an account",
+        "parameters": [
+          {
+            "$ref": "#/parameters/account_id"
+          }
+        ],
+        "description": "Get details of portals in an Account",
+        "security": [
+          {
+            "userApiKey": [
+
+            ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "type": "array",
+              "description": "Array of all portals",
+              "items": {
+                "$ref": "#/definitions/portal"
+              }
+            }
+          },
+          "403": {
+            "description": "Access denied"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Help Center"
+        ],
+        "operationId": "update-new-portal-to-account",
+        "summary": "update a new portal",
+        "description": "update a new portal to account",
+        "security": [
+          {
+            "userApiKey": [
+
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "data",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/portal_create_update_payload"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/portal"
+            }
+          },
+          "403": {
+            "description": "Access denied"
+          }
+        }
+      }
+    },
+    "/api/v1/accounts/{account_id}/portals/{portal_id}/categories": {
+      "parameters": [
+        {
+          "$ref": "#/parameters/account_id"
+        },
+        {
+          "$ref": "#/parameters/portal_id"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Help Center"
+        ],
+        "operationId": "add-new-category-to-account",
+        "summary": "Add a new category",
+        "description": "Add a new category to portal",
+        "security": [
+          {
+            "userApiKey": [
+
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "data",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/category_create_update_payload"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/category"
+            }
+          },
+          "403": {
+            "description": "Access denied"
+          }
+        }
+      }
+    },
+    "/api/v1/accounts/{account_id}/portals/{portal_id}/articles": {
+      "parameters": [
+        {
+          "$ref": "#/parameters/account_id"
+        },
+        {
+          "$ref": "#/parameters/portal_id"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Help Center"
+        ],
+        "operationId": "add-new-article-to-account",
+        "summary": "Add a new article",
+        "description": "Add a new article to portal",
+        "security": [
+          {
+            "userApiKey": [
+
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "data",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/article_create_update_payload"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/article"
+            }
+          },
+          "403": {
+            "description": "Access denied"
+          }
+        }
+      }
+    },
     "/api/v1/accounts/{account_id}/conversations/meta": {
       "parameters": [
         {
@@ -2415,6 +2875,7 @@
             "in": "query",
             "type": "string",
             "enum": [
+              "all",
               "open",
               "resolved",
               "pending",
@@ -2515,6 +2976,7 @@
             "in": "query",
             "type": "string",
             "enum": [
+              "all",
               "open",
               "resolved",
               "pending",
@@ -2596,6 +3058,10 @@
             "required": true,
             "schema": {
               "type": "object",
+              "required": [
+                "source_id",
+                "inbox_id"
+              ],
               "properties": {
                 "source_id": {
                   "type": "string",
@@ -2637,6 +3103,47 @@
                 "team_id": {
                   "type": "string",
                   "description": "Team Id for assigning a conversation to a team"
+                },
+                "message": {
+                  "type": "object",
+                  "description": "The initial message to be sent to the conversation",
+                  "required": [
+                    "content"
+                  ],
+                  "properties": {
+                    "content": {
+                      "type": "string",
+                      "description": "The content of the message"
+                    },
+                    "template_params": {
+                      "type": "object",
+                      "description": "The template params for the message in case of whatsapp Channel",
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "description": "Name of the template",
+                          "example": "sample_issue_resolution"
+                        },
+                        "category": {
+                          "type": "string",
+                          "description": "Category of the template",
+                          "example": "UTILITY"
+                        },
+                        "language": {
+                          "type": "string",
+                          "description": "Language of the template",
+                          "example": "en_US"
+                        },
+                        "processed_params": {
+                          "type": "object",
+                          "description": "The processed param values for template variables in template",
+                          "example": {
+                            "1": "Chatwoot"
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -2701,63 +3208,68 @@
             "type": "integer"
           },
           {
-            "name": "payload",
+            "name": "body",
             "in": "body",
             "required": true,
             "schema": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "attribute_key": {
-                    "type": "string",
-                    "description": "filter attribute name"
+              "type": "object",
+              "properties": {
+                "payload": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "attribute_key": {
+                        "type": "string",
+                        "description": "filter attribute name"
+                      },
+                      "filter_operator": {
+                        "type": "string",
+                        "description": "filter operator name",
+                        "enum": [
+                          "equal_to",
+                          "not_equal_to",
+                          "contains",
+                          "does_not_contain"
+                        ]
+                      },
+                      "values": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "array of the attribute values to filter"
+                      },
+                      "query_operator": {
+                        "type": "string",
+                        "description": "query operator name",
+                        "enum": [
+                          "AND",
+                          "OR"
+                        ]
+                      }
+                    }
                   },
-                  "filter_operator": {
-                    "type": "string",
-                    "description": "filter operator name",
-                    "enum": [
-                      "equal_to",
-                      "not_equal_to",
-                      "contains",
-                      "does_not_contain"
-                    ]
-                  },
-                  "values": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
+                  "example": [
+                    {
+                      "attribute_key": "browser_language",
+                      "filter_operator": "not_eq",
+                      "values": [
+                        "en"
+                      ],
+                      "query_operator": "AND"
                     },
-                    "description": "array of the attribute values to filter"
-                  },
-                  "query_operator": {
-                    "type": "string",
-                    "description": "query operator name",
-                    "enum": [
-                      "AND",
-                      "OR"
-                    ]
-                  }
+                    {
+                      "attribute_key": "status",
+                      "filter_operator": "eq",
+                      "values": [
+                        "pending"
+                      ],
+                      "query_operator": null
+                    }
+                  ]
                 }
-              },
-              "example": [
-                {
-                  "attribute_key": "browser_language",
-                  "filter_operator": "not_eq",
-                  "values": [
-                    "en"
-                  ],
-                  "query_operator": "AND"
-                },
-                {
-                  "attribute_key": "status",
-                  "filter_operator": "eq",
-                  "values": [
-                    "pending"
-                  ],
-                  "query_operator": "nil"
-                }
-              ]
+              }
             }
           }
         ],
@@ -2805,6 +3317,64 @@
           },
           "403": {
             "description": "Access denied"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Conversations"
+        ],
+        "operationId": "update-conversation",
+        "summary": "Update Conversation",
+        "description": "Update Conversation Attributes",
+        "security": [
+          {
+            "userApiKey": [
+
+            ]
+          },
+          {
+            "agentBotApiKey": [
+
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "data",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "priority": {
+                  "type": "string",
+                  "enum": [
+                    "urgent",
+                    "high",
+                    "medium",
+                    "low",
+                    "none"
+                  ],
+                  "description": "The priority of the conversation"
+                },
+                "sla_policy_id": {
+                  "type": "number",
+                  "description": "The ID of the SLA policy (Available only in Enterprise edition)"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "404": {
+            "description": "Conversation not found"
+          },
+          "401": {
+            "description": "Unauthorized"
           }
         }
       }
@@ -2877,6 +3447,146 @@
         }
       }
     },
+    "/api/v1/accounts/{account_id}/conversations/{conversation_id}/toggle_priority": {
+      "parameters": [
+        {
+          "$ref": "#/parameters/account_id"
+        },
+        {
+          "$ref": "#/parameters/conversation_id"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Conversations"
+        ],
+        "operationId": "toggle-priority-of-a-conversation",
+        "summary": "Toggle Priority",
+        "description": "Toggles the priority of conversation",
+        "security": [
+          {
+            "userApiKey": [
+
+            ]
+          },
+          {
+            "agentBotApiKey": [
+
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "data",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "priority"
+              ],
+              "properties": {
+                "priority": {
+                  "type": "string",
+                  "enum": [
+                    "urgent",
+                    "high",
+                    "medium",
+                    "low",
+                    "none"
+                  ],
+                  "description": "The priority of the conversation"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "404": {
+            "description": "Conversation not found"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/accounts/{account_id}/conversations/{conversation_id}/custom_attributes": {
+      "parameters": [
+        {
+          "$ref": "#/parameters/account_id"
+        },
+        {
+          "$ref": "#/parameters/conversation_id"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Conversations"
+        ],
+        "operationId": "update-custom-attributes-of-a-conversation",
+        "summary": "Update Custom Attributes",
+        "description": "Updates the custom attributes of a conversation",
+        "security": [
+          {
+            "userApiKey": [
+
+            ]
+          },
+          {
+            "agentBotApiKey": [
+
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "data",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "custom_attributes"
+              ],
+              "properties": {
+                "custom_attributes": {
+                  "type": "object",
+                  "description": "The custom attributes to be set for the conversation",
+                  "example": {
+                    "order_id": "12345",
+                    "previous_conversation": "67890"
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "custom_attributes": {
+                  "type": "object",
+                  "description": "The custom attributes of the conversation"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Conversation not found"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
     "/api/v1/accounts/{account_id}/conversations/{conversation_id}/assignments": {
       "parameters": [
         {
@@ -2893,6 +3603,18 @@
         "operationId": "assign-a-conversation",
         "summary": "Assign Conversation",
         "description": "Assign a conversation to an agent or a team",
+        "security": [
+          {
+            "userApiKey": [
+
+            ]
+          },
+          {
+            "agentBotApiKey": [
+
+            ]
+          }
+        ],
         "parameters": [
           {
             "name": "data",
@@ -3369,62 +4091,6 @@
             "description": "Access denied"
           }
         }
-      },
-      "delete": {
-        "tags": [
-          "Inboxes"
-        ],
-        "operationId": "delete-agent-in-inbox",
-        "summary": "Remove an Agent from Inbox",
-        "description": "Remove an Agent from Inbox",
-        "security": [
-          {
-            "userApiKey": [
-
-            ]
-          }
-        ],
-        "parameters": [
-          {
-            "name": "data",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "type": "object",
-              "required": [
-                "inbox_id",
-                "user_ids"
-              ],
-              "properties": {
-                "inbox_id": {
-                  "type": "string",
-                  "description": "The ID of the inbox"
-                },
-                "user_ids": {
-                  "type": "array",
-                  "items": {
-                    "type": "integer"
-                  },
-                  "description": "IDs of users to be deleted from the inbox"
-                }
-              }
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success"
-          },
-          "404": {
-            "description": "Inbox not found"
-          },
-          "403": {
-            "description": "Access denied"
-          },
-          "422": {
-            "description": "User must exist"
-          }
-        }
       }
     },
     "/api/v1/accounts/{account_id}/inbox_members": {
@@ -3547,6 +4213,62 @@
                 "$ref": "#/definitions/agent"
               }
             }
+          },
+          "404": {
+            "description": "Inbox not found"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "422": {
+            "description": "User must exist"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Inboxes"
+        ],
+        "operationId": "delete-agent-in-inbox",
+        "summary": "Remove an Agent from Inbox",
+        "description": "Remove an Agent from Inbox",
+        "security": [
+          {
+            "userApiKey": [
+
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "data",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "inbox_id",
+                "user_ids"
+              ],
+              "properties": {
+                "inbox_id": {
+                  "type": "string",
+                  "description": "The ID of the inbox"
+                },
+                "user_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  },
+                  "description": "IDs of users to be deleted from the inbox"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
           },
           "404": {
             "description": "Inbox not found"
@@ -3817,7 +4539,7 @@
         }
       }
     },
-    "/profile": {
+    "/api/v1/profile": {
       "get": {
         "tags": [
           "Profile"
@@ -3980,7 +4702,7 @@
         }
       }
     },
-    "/accounts/{account_id}/teams/{team_id}/team_members": {
+    "/api/v1/accounts/{account_id}/teams/{team_id}/team_members": {
       "parameters": [
         {
           "$ref": "#/parameters/account_id"
@@ -4854,41 +5576,195 @@
         }
       }
     },
+    "portal": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer"
+        },
+        "archived": {
+          "type": "boolean"
+        },
+        "color": {
+          "type": "string"
+        },
+        "config": {
+          "type": "object",
+          "description": "Save information about locales, allowed_locales and default portal/help-center locale"
+        },
+        "custom_domain": {
+          "type": "string"
+        },
+        "header_text": {
+          "type": "string",
+          "description": "The text content."
+        },
+        "homepage_link": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "slug": {
+          "type": "string"
+        },
+        "page_title": {
+          "type": "string"
+        },
+        "account_id": {
+          "type": "integer"
+        },
+        "categories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/category"
+          }
+        },
+        "articles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/article"
+          }
+        }
+      }
+    },
+    "category": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer"
+        },
+        "description": {
+          "type": "string",
+          "description": "The text content."
+        },
+        "locale": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "slug": {
+          "type": "string"
+        },
+        "position": {
+          "type": "integer"
+        },
+        "portal_id": {
+          "type": "integer"
+        },
+        "account_id": {
+          "type": "integer"
+        },
+        "associated_category_id": {
+          "type": "integer",
+          "description": "To associate similar categories to each other, e.g same category of product documentation in different languages"
+        },
+        "parent_category_id": {
+          "type": "integer",
+          "description": "To define parent category, e.g product documentation has multiple level features in sales category or in engineering category."
+        }
+      }
+    },
+    "article": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer"
+        },
+        "content": {
+          "type": "string",
+          "description": "The text content."
+        },
+        "meta": {
+          "type": "object"
+        },
+        "position": {
+          "type": "integer"
+        },
+        "status": {
+          "type": "integer",
+          "enum": [
+            "draft",
+            "published",
+            "archived"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "slug": {
+          "type": "string"
+        },
+        "views": {
+          "type": "integer"
+        },
+        "portal_id": {
+          "type": "integer"
+        },
+        "account_id": {
+          "type": "integer"
+        },
+        "author_id": {
+          "type": "integer"
+        },
+        "category_id": {
+          "type": "integer"
+        },
+        "folder_id": {
+          "type": "integer"
+        },
+        "associated_article_id": {
+          "type": "integer",
+          "description": "To associate similar articles to each other, e.g to provide the link for the reference."
+        }
+      }
+    },
     "contact": {
       "type": "object",
       "properties": {
-        "email": {
-          "type": "string",
-          "description": "Email address of the contact"
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the contact"
-        },
-        "phone_number": {
-          "type": "string",
-          "description": "Phone number of the contact"
-        },
-        "thumbnail": {
-          "type": "string",
-          "description": "Avatar URL of the contact"
-        },
-        "additional_attributes": {
+        "payload": {
           "type": "object",
-          "description": "The object containing additional attributes related to the contact"
-        },
-        "custom_attributes": {
-          "type": "object",
-          "description": "The object to save custom attributes for contact, accepts custom attributes key and value",
-          "example": {
-            "attribute_key": "attribute_value",
-            "signed_up_at": "dd/mm/yyyy"
-          }
-        },
-        "contact_inboxes": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/contact_inboxes"
+          "properties": {
+            "contact": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "description": "Email address of the contact"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "The name of the contact"
+                },
+                "phone_number": {
+                  "type": "string",
+                  "description": "Phone number of the contact"
+                },
+                "thumbnail": {
+                  "type": "string",
+                  "description": "Avatar URL of the contact"
+                },
+                "additional_attributes": {
+                  "type": "object",
+                  "description": "The object containing additional attributes related to the contact"
+                },
+                "custom_attributes": {
+                  "type": "object",
+                  "description": "The object to save custom attributes for contact, accepts custom attributes key and value",
+                  "example": {
+                    "attribute_key": "attribute_value",
+                    "signed_up_at": "dd/mm/yyyy"
+                  }
+                },
+                "contact_inboxes": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/contact_inboxes"
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -5764,6 +6640,7 @@
         "content_type": {
           "type": "string",
           "enum": [
+            "text",
             "input_email",
             "cards",
             "input_select",
@@ -5776,6 +6653,34 @@
         "content_attributes": {
           "type": "object",
           "description": "attributes based on your content type"
+        },
+        "template_params": {
+          "type": "object",
+          "description": "The template params for the message in case of whatsapp Channel",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Name of the template",
+              "example": "sample_issue_resolution"
+            },
+            "category": {
+              "type": "string",
+              "description": "Category of the template",
+              "example": "UTILITY"
+            },
+            "language": {
+              "type": "string",
+              "description": "Language of the template",
+              "example": "en_US"
+            },
+            "processed_params": {
+              "type": "object",
+              "description": "The processed param values for template variables in template",
+              "example": {
+                "1": "Chatwoot"
+              }
+            }
+          }
         }
       }
     },
@@ -5925,6 +6830,161 @@
         }
       }
     },
+    "portal_create_update_payload": {
+      "type": "object",
+      "properties": {
+        "archived": {
+          "type": "boolean",
+          "description": "Status to check if portal is live"
+        },
+        "color": {
+          "type": "string",
+          "description": "Header color for help-center",
+          "example": "add color HEX string, \"#fffff\""
+        },
+        "config": {
+          "type": "object",
+          "description": "Configuration about supporting locales",
+          "example": {
+            "allowed_locales": [
+              "en",
+              "es"
+            ],
+            "default_locale": "en"
+          }
+        },
+        "custom_domain": {
+          "type": "string",
+          "description": "Custom domain to  display help center.",
+          "example": "https://chatwoot.help/."
+        },
+        "header_text": {
+          "type": "string",
+          "description": "Help center header",
+          "example": "Handbook"
+        },
+        "homepage_link": {
+          "type": "string",
+          "description": "link to main dashboard",
+          "example": "https://www.chatwoot.com/"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name for the portal"
+        },
+        "slug": {
+          "type": "string",
+          "description": "Slug for the portal to display in link"
+        },
+        "page_title": {
+          "type": "string",
+          "description": "Page title for the portal"
+        },
+        "account_id": {
+          "type": "integer"
+        }
+      }
+    },
+    "category_create_update_payload": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Category description"
+        },
+        "locale": {
+          "type": "string",
+          "description": "Category locale",
+          "example": "en/es"
+        },
+        "name": {
+          "type": "string",
+          "description": "Category name"
+        },
+        "slug": {
+          "type": "string",
+          "description": "Category slug"
+        },
+        "position": {
+          "type": "integer",
+          "description": "Category position in the portal list to sort"
+        },
+        "portal_id": {
+          "type": "integer"
+        },
+        "account_id": {
+          "type": "integer"
+        },
+        "associated_category_id": {
+          "type": "integer",
+          "description": "To associate similar categories to each other, e.g same category of product documentation in different languages"
+        },
+        "parent_category_id": {
+          "type": "integer",
+          "description": "To define parent category, e.g product documentation has multiple level features in sales category or in engineering category."
+        }
+      }
+    },
+    "article_create_update_payload": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "string",
+          "description": "The text content."
+        },
+        "meta": {
+          "type": "object",
+          "description": "Use for search",
+          "example": {
+            "tags": [
+              "article_name"
+            ],
+            "title": "article title",
+            "description": "article description"
+          }
+        },
+        "position": {
+          "type": "integer",
+          "description": "article position in category"
+        },
+        "status": {
+          "type": "integer",
+          "example": [
+            "draft",
+            "published",
+            "archived"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "slug": {
+          "type": "string"
+        },
+        "views": {
+          "type": "integer"
+        },
+        "portal_id": {
+          "type": "integer"
+        },
+        "account_id": {
+          "type": "integer"
+        },
+        "author_id": {
+          "type": "integer"
+        },
+        "category_id": {
+          "type": "integer"
+        },
+        "folder_id": {
+          "type": "integer"
+        },
+        "associated_article_id": {
+          "type": "integer",
+          "description": "To associate similar articles to each other, e.g to provide the link for the reference."
+        }
+      }
+    },
     "public_contact_create_update_payload": {
       "type": "object",
       "properties": {
@@ -5977,6 +7037,15 @@
         "submitted_values": {
           "type": "object",
           "description": "Replies to the Bot Message Types"
+        }
+      }
+    },
+    "public_conversation_create_payload": {
+      "type": "object",
+      "properties": {
+        "custom_attributes": {
+          "type": "object",
+          "description": "Custom attributes of the conversation"
         }
       }
     },
@@ -6079,6 +7148,18 @@
             }
           }
         ]
+      }
+    },
+    "contact_labels": {
+      "type": "object",
+      "properties": {
+        "payload": {
+          "type": "array",
+          "description": "Array of labels",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
     "conversation_list": {
@@ -6381,6 +7462,13 @@
       "required": true,
       "description": "The numeric ID of the conversation"
     },
+    "conversation_uuid": {
+      "in": "path",
+      "name": "conversation_uuid",
+      "type": "integer",
+      "required": true,
+      "description": "The uuid of the conversation"
+    },
     "custom_filter_id": {
       "in": "path",
       "name": "custom_filter_id",
@@ -6459,6 +7547,13 @@
       "type": "string",
       "required": true,
       "description": "The source id of contact obtained on contact create"
+    },
+    "portal_id": {
+      "in": "path",
+      "name": "portal_id",
+      "type": "integer",
+      "required": true,
+      "description": "The numeric ID of the portal"
     }
   },
   "x-tagGroups": [
@@ -6478,6 +7573,7 @@
         "Agents",
         "Canned Responses",
         "Contacts",
+        "Contact Labels",
         "Conversation Assignment",
         "Conversation Labels",
         "Conversations",
@@ -6490,7 +7586,8 @@
         "Reports",
         "Teams",
         "Webhooks",
-        "Automation Rule"
+        "Automation Rule",
+        "Help Center"
       ]
     },
     {
@@ -6499,6 +7596,12 @@
         "Contacts API",
         "Conversations API",
         "Messages API"
+      ]
+    },
+    {
+      "name": "Others",
+      "tags": [
+        "CSAT Survey Page"
       ]
     }
   ]

@@ -1,4 +1,3 @@
-import Vue from 'vue';
 import types from '../../mutation-types';
 import ConversationApi from '../../../api/inbox/conversation';
 import MessageApi from '../../../api/inbox/message';
@@ -8,11 +7,24 @@ import {
   buildConversationList,
   isOnMentionsView,
   isOnUnattendedView,
+  isOnFoldersView,
 } from './helpers/actionHelpers';
 import messageReadActions from './actions/messageReadActions';
-import AnalyticsHelper from '../../../helper/AnalyticsHelper';
-import { CONVERSATION_EVENTS } from '../../../helper/AnalyticsHelper/events';
 import messageTranslateActions from './actions/messageTranslateActions';
+import * as Sentry from '@sentry/vue';
+
+export const hasMessageFailedWithExternalError = pendingMessage => {
+  // This helper is used to check if the message has failed with an external error.
+  // We have two cases
+  // 1. Messages that fail from the UI itself (due to large attachments or a failed network):
+  //    In this case, the message will have a status of failed but no external error. So we need to create that message again
+  // 2. Messages sent from Chatwoot but failed to deliver to the customer for some reason (user blocking or client system down):
+  //    In this case, the message will have a status of failed and an external error. So we need to retry that message
+  const { content_attributes: contentAttributes, status } = pendingMessage;
+  const externalError = contentAttributes?.external_error ?? '';
+  return status === MESSAGE_STATUS.FAILED && externalError !== '';
+};
+
 // actions
 const actions = {
   getConversation: async ({ commit }, conversationId) => {
@@ -25,9 +37,10 @@ const actions = {
     }
   },
 
-  fetchAllConversations: async ({ commit, dispatch }, params) => {
+  fetchAllConversations: async ({ commit, state, dispatch }) => {
     commit(types.SET_LIST_LOADING_STATUS);
     try {
+      const params = state.conversationFilters;
       const {
         data: { data },
       } = await ConversationApi.get(params);
@@ -78,7 +91,7 @@ const actions = {
         id: data.conversationId,
         data: payload,
       });
-      if (payload.length < 20) {
+      if (!payload.length) {
         commit(types.SET_ALL_MESSAGES_LOADED);
       }
     } catch (error) {
@@ -86,17 +99,103 @@ const actions = {
     }
   },
 
-  async setActiveChat({ commit, dispatch }, data) {
+  fetchAllAttachments: async ({ commit }, conversationId) => {
+    let attachments = [];
+
+    try {
+      const { data } = await ConversationApi.getAllAttachments(conversationId);
+      attachments = data.payload;
+    } catch (error) {
+      // in case of error, log the error and continue
+      Sentry.setContext('Conversation', {
+        id: conversationId,
+      });
+      Sentry.captureException(error);
+    } finally {
+      // we run the commit even if the request fails
+      // this ensures that the `attachment` variable is always present on chat
+      commit(types.SET_ALL_ATTACHMENTS, {
+        id: conversationId,
+        data: attachments,
+      });
+    }
+  },
+
+  syncActiveConversationMessages: async (
+    { commit, state, dispatch },
+    { conversationId }
+  ) => {
+    const { allConversations, syncConversationsMessages } = state;
+    const lastMessageId = syncConversationsMessages[conversationId];
+    const selectedChat = allConversations.find(
+      conversation => conversation.id === conversationId
+    );
+    if (!selectedChat) return;
+    try {
+      const { messages } = selectedChat;
+      // Fetch all the messages after the last message id
+      const {
+        data: { meta, payload },
+      } = await MessageApi.getPreviousMessages({
+        conversationId,
+        after: lastMessageId,
+      });
+      commit(`conversationMetadata/${types.SET_CONVERSATION_METADATA}`, {
+        id: conversationId,
+        data: meta,
+      });
+      // Find the messages that are not already present in the store
+      const missingMessages = payload.filter(
+        message => !messages.find(item => item.id === message.id)
+      );
+      selectedChat.messages.push(...missingMessages);
+      // Sort the messages by created_at
+      const sortedMessages = selectedChat.messages.sort((a, b) => {
+        return new Date(a.created_at) - new Date(b.created_at);
+      });
+      commit(types.SET_MISSING_MESSAGES, {
+        id: conversationId,
+        data: sortedMessages,
+      });
+      commit(types.SET_LAST_MESSAGE_ID_IN_SYNC_CONVERSATION, {
+        conversationId,
+        messageId: null,
+      });
+      dispatch('markMessagesRead', { id: conversationId }, { root: true });
+    } catch (error) {
+      // Handle error
+    }
+  },
+
+  setConversationLastMessageId: async (
+    { commit, state },
+    { conversationId }
+  ) => {
+    const { allConversations } = state;
+    const selectedChat = allConversations.find(
+      conversation => conversation.id === conversationId
+    );
+    if (!selectedChat) return;
+    const { messages } = selectedChat;
+    const lastMessage = messages.last();
+    if (!lastMessage) return;
+    commit(types.SET_LAST_MESSAGE_ID_IN_SYNC_CONVERSATION, {
+      conversationId,
+      messageId: lastMessage.id,
+    });
+  },
+
+  async setActiveChat({ commit, dispatch }, { data, after }) {
     commit(types.SET_CURRENT_CHAT_WINDOW, data);
     commit(types.CLEAR_ALL_MESSAGES_LOADED);
-
     if (data.dataFetched === undefined) {
       try {
         await dispatch('fetchPreviousMessages', {
-          conversationId: data.id,
+          after,
           before: data.messages[0].id,
+          conversationId: data.id,
         });
-        Vue.set(data, 'dataFetched', true);
+        data.dataFetched = true;
       } catch (error) {
         // Ignore error
       }
@@ -168,18 +267,20 @@ const actions = {
   },
 
   sendMessageWithData: async ({ commit }, pendingMessage) => {
+    const { conversation_id: conversationId, id } = pendingMessage;
     try {
       commit(types.ADD_MESSAGE, {
         ...pendingMessage,
         status: MESSAGE_STATUS.PROGRESS,
       });
-      const response = await MessageApi.create(pendingMessage);
-      AnalyticsHelper.track(
-        pendingMessage.private
-          ? CONVERSATION_EVENTS.SENT_PRIVATE_NOTE
-          : CONVERSATION_EVENTS.SENT_MESSAGE
-      );
+      const response = hasMessageFailedWithExternalError(pendingMessage)
+        ? await MessageApi.retry(conversationId, id)
+        : await MessageApi.create(pendingMessage);
       commit(types.ADD_MESSAGE, {
+        ...response.data,
+        status: MESSAGE_STATUS.SENT,
+      });
+      commit(types.ADD_CONVERSATION_ATTACHMENTS, {
         ...response.data,
         status: MESSAGE_STATUS.SENT,
       });
@@ -205,6 +306,7 @@ const actions = {
         conversationId: message.conversation_id,
         canReply: true,
       });
+      commit(types.ADD_CONVERSATION_ATTACHMENTS, message);
     }
   },
 
@@ -217,10 +319,9 @@ const actions = {
     { conversationId, messageId }
   ) {
     try {
-      const response = await MessageApi.delete(conversationId, messageId);
-      const { data } = response;
-      // The delete message is actually deleting the content.
+      const { data } = await MessageApi.delete(conversationId, messageId);
       commit(types.ADD_MESSAGE, data);
+      commit(types.DELETE_CONVERSATION_ATTACHMENTS, data);
     } catch (error) {
       throw new Error(error);
     }
@@ -232,12 +333,12 @@ const actions = {
       inbox_id: inboxId,
       meta: { sender },
     } = conversation;
-
     const hasAppliedFilters = !!appliedFilters.length;
     const isMatchingInboxFilter =
       !currentInbox || Number(currentInbox) === inboxId;
     if (
       !hasAppliedFilters &&
+      !isOnFoldersView(rootState) &&
       !isOnMentionsView(rootState) &&
       !isOnUnattendedView(rootState) &&
       isMatchingInboxFilter
@@ -273,8 +374,22 @@ const actions = {
     dispatch('contacts/setContact', sender);
   },
 
-  setChatFilter({ commit }, data) {
+  updateConversationLastActivity(
+    { commit },
+    { conversationId, lastActivityAt }
+  ) {
+    commit(types.UPDATE_CONVERSATION_LAST_ACTIVITY, {
+      lastActivityAt,
+      conversationId,
+    });
+  },
+
+  setChatStatusFilter({ commit }, data) {
     commit(types.CHANGE_CHAT_STATUS_FILTER, data);
+  },
+
+  setChatSortFilter({ commit }, data) {
+    commit(types.CHANGE_CHAT_SORT_FILTER, data);
   },
 
   updateAssignee({ commit }, data) {
@@ -341,6 +456,48 @@ const actions = {
   clearConversationFilters({ commit }) {
     commit(types.CLEAR_CONVERSATION_FILTERS);
   },
+
+  setChatListFilters({ commit }, data) {
+    commit(types.SET_CHAT_LIST_FILTERS, data);
+  },
+
+  updateChatListFilters({ commit }, data) {
+    commit(types.UPDATE_CHAT_LIST_FILTERS, data);
+  },
+
+  assignPriority: async ({ dispatch }, { conversationId, priority }) => {
+    try {
+      await ConversationApi.togglePriority({
+        conversationId,
+        priority,
+      });
+
+      dispatch('setCurrentChatPriority', {
+        priority,
+        conversationId,
+      });
+    } catch (error) {
+      // Handle error
+    }
+  },
+
+  setCurrentChatPriority({ commit }, { priority, conversationId }) {
+    commit(types.ASSIGN_PRIORITY, { priority, conversationId });
+  },
+
+  setContextMenuChatId({ commit }, chatId) {
+    commit(types.SET_CONTEXT_MENU_CHAT_ID, chatId);
+  },
+
+  getInboxCaptainAssistantById: async ({ commit }, conversationId) => {
+    try {
+      const response = await ConversationApi.getInboxAssistant(conversationId);
+      commit(types.SET_INBOX_CAPTAIN_ASSISTANT, response.data);
+    } catch (error) {
+      // Handle error
+    }
+  },
+
   ...messageReadActions,
   ...messageTranslateActions,
 };

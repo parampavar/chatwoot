@@ -1,17 +1,98 @@
+<script>
+import { mapGetters } from 'vuex';
+import Thumbnail from 'dashboard/components/widgets/Thumbnail.vue';
+import Spinner from 'shared/components/Spinner.vue';
+
+export default {
+  components: {
+    Thumbnail,
+    Spinner,
+  },
+  props: {
+    selectedInboxes: {
+      type: Array,
+      default: () => [],
+    },
+    conversationCount: {
+      type: Number,
+      default: 0,
+    },
+  },
+  emits: ['select', 'close'],
+  data() {
+    return {
+      query: '',
+      selectedAgent: null,
+      goBackToAgentList: false,
+    };
+  },
+  computed: {
+    ...mapGetters({
+      uiFlags: 'bulkActions/getUIFlags',
+      assignableAgentsUiFlags: 'inboxAssignableAgents/getUIFlags',
+    }),
+    filteredAgents() {
+      if (this.query) {
+        return this.assignableAgents.filter(agent =>
+          agent.name.toLowerCase().includes(this.query.toLowerCase())
+        );
+      }
+      return [
+        {
+          confirmed: true,
+          name: 'None',
+          id: null,
+          role: 'agent',
+          account_id: 0,
+          email: 'None',
+        },
+        ...this.assignableAgents,
+      ];
+    },
+    assignableAgents() {
+      return this.$store.getters['inboxAssignableAgents/getAssignableAgents'](
+        this.selectedInboxes.join(',')
+      );
+    },
+    conversationLabel() {
+      return this.conversationCount > 1 ? 'conversations' : 'conversation';
+    },
+  },
+  mounted() {
+    this.$store.dispatch('inboxAssignableAgents/fetch', this.selectedInboxes);
+  },
+  methods: {
+    submit() {
+      this.$emit('select', this.selectedAgent);
+    },
+    goBack() {
+      this.goBackToAgentList = true;
+      this.selectedAgent = null;
+    },
+    assignAgent(agent) {
+      this.selectedAgent = agent;
+    },
+    onClose() {
+      this.$emit('close');
+    },
+    onCloseAgentList() {
+      if (this.selectedAgent === null && !this.goBackToAgentList) {
+        this.onClose();
+      }
+      this.goBackToAgentList = false;
+    },
+  },
+};
+</script>
+
 <template>
-  <div class="bulk-action__agents">
-    <div class="triangle" :style="cssVars">
+  <div v-on-clickaway="onCloseAgentList" class="bulk-action__agents">
+    <div class="triangle">
       <svg height="12" viewBox="0 0 24 12" width="24">
-        <path
-          d="M20 12l-8-8-12 12"
-          fill="var(--white)"
-          fill-rule="evenodd"
-          stroke="var(--s-50)"
-          stroke-width="1px"
-        />
+        <path d="M20 12l-8-8-12 12" fill-rule="evenodd" stroke-width="1px" />
       </svg>
     </div>
-    <div class="header flex-between">
+    <div class="flex items-center justify-between header">
       <span>{{ $t('BULK_ACTION.AGENT_SELECT_LABEL') }}</span>
       <woot-button
         size="tiny"
@@ -26,33 +107,35 @@
         v-if="assignableAgentsUiFlags.isFetching"
         class="agent__list-loading"
       >
-        <spinner />
+        <Spinner />
         <p>{{ $t('BULK_ACTION.AGENT_LIST_LOADING') }}</p>
       </div>
       <div v-else class="agent__list-container">
         <ul v-if="!selectedAgent">
           <li class="search-container">
-            <div class="agent-list-search flex-between">
+            <div
+              class="flex items-center justify-between h-8 gap-2 agent-list-search"
+            >
               <fluent-icon icon="search" class="search-icon" size="16" />
               <input
-                ref="search"
                 v-model="query"
                 type="search"
-                placeholder="Search"
+                :placeholder="$t('BULK_ACTION.SEARCH_INPUT_PLACEHOLDER')"
                 class="agent--search_input"
               />
             </div>
           </li>
           <li v-for="agent in filteredAgents" :key="agent.id">
             <div class="agent-list-item" @click="assignAgent(agent)">
-              <thumbnail
+              <Thumbnail
                 :src="agent.thumbnail"
                 :status="agent.availability_status"
                 :username="agent.name"
                 size="22px"
-                class="margin-right-small"
               />
-              <span class="reports-option__title">{{ agent.name }}</span>
+              <span class="my-0 text-slate-800 dark:text-slate-75">
+                {{ agent.name }}
+              </span>
             </div>
           </li>
         </ul>
@@ -100,194 +183,75 @@
   </div>
 </template>
 
-<script>
-import { mapGetters } from 'vuex';
-import Thumbnail from 'dashboard/components/widgets/Thumbnail.vue';
-import Spinner from 'shared/components/Spinner';
-import { mixin as clickaway } from 'vue-clickaway';
-import bulkActionsMixin from 'dashboard/mixins/bulkActionsMixin.js';
-
-export default {
-  components: {
-    Thumbnail,
-    Spinner,
-  },
-  mixins: [clickaway, bulkActionsMixin],
-  props: {
-    selectedInboxes: {
-      type: Array,
-      default: () => [],
-    },
-    conversationCount: {
-      type: Number,
-      default: 0,
-    },
-  },
-  data() {
-    return {
-      query: '',
-      selectedAgent: null,
-    };
-  },
-  computed: {
-    ...mapGetters({
-      uiFlags: 'bulkActions/getUIFlags',
-      inboxes: 'inboxes/getInboxes',
-      assignableAgentsUiFlags: 'inboxAssignableAgents/getUIFlags',
-    }),
-    filteredAgents() {
-      if (this.query) {
-        return this.assignableAgents.filter(agent =>
-          agent.name.toLowerCase().includes(this.query.toLowerCase())
-        );
-      }
-      return [
-        {
-          confirmed: true,
-          name: 'None',
-          id: null,
-          role: 'agent',
-          account_id: 0,
-          email: 'None',
-        },
-        ...this.assignableAgents,
-      ];
-    },
-    assignableAgents() {
-      return this.$store.getters['inboxAssignableAgents/getAssignableAgents'](
-        this.selectedInboxes.join(',')
-      );
-    },
-    conversationLabel() {
-      return this.conversationCount > 1 ? 'conversations' : 'conversation';
-    },
-  },
-  mounted() {
-    this.$store.dispatch('inboxAssignableAgents/fetch', this.selectedInboxes);
-  },
-  methods: {
-    submit() {
-      this.$emit('select', this.selectedAgent);
-    },
-    goBack() {
-      this.selectedAgent = null;
-    },
-    assignAgent(agent) {
-      this.selectedAgent = agent;
-    },
-    onClose() {
-      this.$emit('close');
-    },
-  },
-};
-</script>
-
 <style scoped lang="scss">
 .bulk-action__agents {
-  background-color: var(--white);
-  border-radius: var(--border-radius-large);
-  border: 1px solid var(--s-50);
-  box-shadow: var(--shadow-dropdown-pane);
-  max-width: 75%;
-  position: absolute;
-  right: var(--space-small);
-  top: var(--space-larger);
-  transform-origin: top right;
-  width: auto;
-  z-index: var(--z-index-twenty);
-  min-width: var(--space-giga);
+  @apply max-w-[75%] absolute right-2 top-12 origin-top-right w-auto z-20 min-w-[15rem] bg-n-alpha-3 backdrop-blur-[100px] border-n-weak rounded-lg border border-solid shadow-md;
   .header {
-    padding: var(--space-one);
+    @apply p-2.5;
 
     span {
-      font-size: var(--font-size-small);
-      font-weight: var(--font-weight-medium);
+      @apply text-sm font-medium;
     }
   }
 
   .container {
-    max-height: var(--space-giga);
-    overflow-y: auto;
+    @apply overflow-y-auto max-h-[15rem];
     .agent__list-container {
-      height: 100%;
+      @apply h-full;
     }
     .agent-list-search {
-      padding: 0 var(--space-one);
-      border: 1px solid var(--s-100);
-      border-radius: var(--border-radius-medium);
-      background-color: var(--s-50);
+      @apply py-0 px-2.5 bg-n-alpha-black2 border border-solid border-n-strong rounded-md;
       .search-icon {
-        color: var(--s-400);
+        @apply text-slate-400 dark:text-slate-200;
       }
 
       .agent--search_input {
-        border: 0;
-        font-size: var(--font-size-mini);
-        margin: 0;
-        background-color: transparent;
-        height: unset;
+        @apply border-0 text-xs m-0 dark:bg-transparent bg-transparent h-[unset] w-full;
       }
     }
   }
   .triangle {
-    display: block;
-    z-index: var(--z-index-one);
-    position: absolute;
-    top: calc(var(--space-slab) * -1);
     right: var(--triangle-position);
-    text-align: left;
+    @apply block z-10 absolute -top-3 text-left;
+
+    svg path {
+      @apply fill-n-alpha-3 backdrop-blur-[100px]  stroke-n-weak;
+    }
   }
 }
 ul {
-  margin: 0;
-  list-style: none;
+  @apply m-0 list-none;
+
+  li {
+    &:last-child {
+      .agent-list-item {
+        @apply last:rounded-b-lg;
+      }
+    }
+  }
 }
 
 .agent-list-item {
-  display: flex;
-  align-items: center;
-  padding: var(--space-one);
-  cursor: pointer;
-  &:hover {
-    background-color: var(--s-50);
-  }
+  @apply flex items-center p-2.5 gap-2 cursor-pointer hover:bg-n-slate-3 dark:hover:bg-n-solid-3;
   span {
-    font-size: var(--font-size-small);
+    @apply text-sm;
   }
 }
 
 .agent-confirmation-container {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  padding: var(--space-one);
+  @apply flex flex-col h-full p-2.5;
   p {
-    flex-grow: 1;
+    @apply flex-grow;
   }
   .agent-confirmation-actions {
-    width: 100%;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-one);
+    @apply w-full grid grid-cols-2 gap-2.5;
   }
 }
 .search-container {
-  padding: 0 var(--space-one);
-  position: sticky;
-  top: 0;
-  z-index: var(--z-index-twenty);
-  background-color: var(--white);
+  @apply py-0 px-2.5 sticky top-0 z-20 bg-n-alpha-3 backdrop-blur-[100px];
 }
 
 .agent__list-loading {
-  height: calc(95% - var(--space-one));
-  margin: var(--space-one);
-  border-radius: var(--border-radius-medium);
-  background-color: var(--s-50);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  padding: var(--space-two);
+  @apply m-2.5 rounded-md bg-slate-25 dark:bg-slate-900 flex items-center justify-center flex-col p-5 h-[calc(95%-6.25rem)];
 }
 </style>

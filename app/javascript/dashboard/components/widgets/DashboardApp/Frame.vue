@@ -1,27 +1,6 @@
-<template>
-  <div class="dashboard-app--container">
-    <div
-      v-for="(configItem, index) in config"
-      :key="index"
-      class="dashboard-app--list"
-    >
-      <loading-state
-        v-if="iframeLoading"
-        :message="$t('DASHBOARD_APPS.LOADING_MESSAGE')"
-        class="dashboard-app_loading-container"
-      />
-      <iframe
-        v-if="configItem.type === 'frame' && configItem.url"
-        :id="`dashboard-app--frame-${index}`"
-        :src="configItem.url"
-        @load="() => onIframeLoad(index)"
-      />
-    </div>
-  </div>
-</template>
-
 <script>
-import LoadingState from 'dashboard/components/widgets/LoadingState';
+import LoadingState from 'dashboard/components/widgets/LoadingState.vue';
+
 export default {
   components: {
     LoadingState,
@@ -35,9 +14,18 @@ export default {
       type: Object,
       default: () => ({}),
     },
+    isVisible: {
+      type: Boolean,
+      default: false,
+    },
+    position: {
+      type: Number,
+      required: true,
+    },
   },
   data() {
     return {
+      hasOpenedAtleastOnce: false,
       iframeLoading: true,
     };
   },
@@ -57,23 +45,34 @@ export default {
       return { id, name, email };
     },
   },
-
-  mounted() {
-    window.onmessage = e => {
-      if (
-        typeof e.data !== 'string' ||
-        e.data !== 'chatwoot-dashboard-app:fetch-info'
-      ) {
-        return;
+  watch: {
+    isVisible() {
+      if (this.isVisible) {
+        this.hasOpenedAtleastOnce = true;
       }
-      this.onIframeLoad(0);
-    };
+    },
+  },
+  mounted() {
+    window.addEventListener('message', this.triggerEvent);
+  },
+  unmounted() {
+    window.removeEventListener('message', this.triggerEvent);
   },
   methods: {
+    triggerEvent(event) {
+      if (!this.isVisible) return;
+      if (event.data === 'chatwoot-dashboard-app:fetch-info') {
+        this.onIframeLoad(0);
+      }
+    },
+    getFrameId(index) {
+      return `dashboard-app--frame-${this.position}-${index}`;
+    },
     onIframeLoad(index) {
-      const frameElement = document.getElementById(
-        `dashboard-app--frame-${index}`
-      );
+      // A possible alternative is to use ref instead of document.getElementById
+      // However, when ref is used together with v-for, the ref you get will be
+      // an array containing the child components mirroring the data source.
+      const frameElement = document.getElementById(this.getFrameId(index));
       const eventData = { event: 'appContext', data: this.dashboardAppContext };
       frameElement.contentWindow.postMessage(JSON.stringify(eventData), '*');
       this.iframeLoading = false;
@@ -81,6 +80,29 @@ export default {
   },
 };
 </script>
+
+<!-- eslint-disable-next-line vue/no-root-v-if -->
+<template>
+  <div v-if="hasOpenedAtleastOnce" class="dashboard-app--container">
+    <div
+      v-for="(configItem, index) in config"
+      :key="index"
+      class="dashboard-app--list"
+    >
+      <LoadingState
+        v-if="iframeLoading"
+        :message="$t('DASHBOARD_APPS.LOADING_MESSAGE')"
+        class="dashboard-app_loading-container"
+      />
+      <iframe
+        v-if="configItem.type === 'frame' && configItem.url"
+        :id="getFrameId(index)"
+        :src="configItem.url"
+        @load="() => onIframeLoad(index)"
+      />
+    </div>
+  </div>
+</template>
 
 <style scoped>
 .dashboard-app--container,

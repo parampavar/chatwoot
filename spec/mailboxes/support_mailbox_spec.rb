@@ -1,6 +1,6 @@
 require 'rails_helper'
 
-RSpec.describe SupportMailbox, type: :mailbox do
+RSpec.describe SupportMailbox do
   include ActionMailbox::TestHelper
 
   describe 'when a chatwoot notification email is received' do
@@ -13,6 +13,17 @@ RSpec.describe SupportMailbox, type: :mailbox do
     it 'shouldnt create a conversation in the channel' do
       described_subject
       expect(conversation.present?).to be(false)
+    end
+  end
+
+  describe 'when bounced email with out a sender is recieved' do
+    let(:account) { create(:account) }
+    let(:bounced_email) { create_inbound_email_from_fixture('bounced_with_no_from.eml') }
+    let(:described_subject) { described_class.receive bounced_email }
+
+    it 'shouldnt throw an error' do
+      create(:channel_email, email: 'support@example.com', account: account)
+      expect { described_subject }.not_to raise_error
     end
   end
 
@@ -245,6 +256,7 @@ RSpec.describe SupportMailbox, type: :mailbox do
         expect(conversation.messages.last.content_attributes['email']['html_content']['reply']).to include(
           <<~BODY.chomp
             Hi,
+
             We are providing you platform from here you can sell paid posts on your website.
 
             Chatwoot | CS team | [C](https://d33wubrfki0l68.cloudfront.net/973467c532160fd8b940300a43fa85fa2d060307/dc9a0/static/brand-73f58cdefae282ae74cebfa74c1d7003.svg)

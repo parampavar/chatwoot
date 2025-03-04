@@ -1,6 +1,6 @@
 require 'rails_helper'
 
-describe ::ContactIdentifyAction do
+describe ContactIdentifyAction do
   subject(:contact_identify) { described_class.new(contact: contact, params: params).perform }
 
   let!(:account) { create(:account) }
@@ -20,6 +20,12 @@ describe ::ContactIdentifyAction do
       expect(contact.custom_attributes).to eq({ 'test' => 'new test', 'test1' => 'test1', 'test2' => 'test2' })
       expect(contact.additional_attributes).to eq({ 'company_name' => 'Meta', 'location' => 'Bengaulru' })
       expect(contact.reload.identifier).to eq 'test_id'
+    end
+
+    it 'will not call avatar job if avatar is already attached' do
+      contact.avatar.attach(io: Rails.root.join('spec/assets/avatar.png').open, filename: 'avatar.png', content_type: 'image/png')
+      expect(Avatar::AvatarFromUrlJob).not_to receive(:perform_later).with(contact, params[:avatar_url])
+      contact_identify
     end
 
     it 'merge deeply nested additional attributes' do

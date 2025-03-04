@@ -1,27 +1,7 @@
-<template>
-  <div
-    v-if="!conversationSize && isFetchingList"
-    class="flex flex-1 items-center h-full bg-black-25 justify-center"
-  >
-    <spinner size="" />
-  </div>
-  <div
-    v-else
-    class="flex flex-col justify-end h-full"
-    :class="{
-      'is-mobile': isMobile,
-      'is-widget-right': isRightAligned,
-      'is-bubble-hidden': hideMessageBubble,
-      'is-flat-design': isWidgetStyleFlat,
-    }"
-  >
-    <router-view />
-  </div>
-</template>
-
 <script>
 import { mapGetters, mapActions } from 'vuex';
 import { setHeader } from 'widget/helpers/axios';
+import addHours from 'date-fns/addHours';
 import { IFrameHelper, RNHelper } from 'widget/helpers/utils';
 import configMixin from './mixins/configMixin';
 import availabilityMixin from 'widget/mixins/availability';
@@ -38,8 +18,9 @@ import {
   ON_CAMPAIGN_MESSAGE_CLICK,
   ON_UNREAD_MESSAGE_CLICK,
 } from './constants/widgetBusEvents';
-
+import { useDarkMode } from 'widget/composables/useDarkMode';
 import { SDK_SET_BUBBLE_VISIBILITY } from '../shared/constants/sharedFrameEvents';
+import { emitter } from 'shared/helpers/mitt';
 
 export default {
   name: 'App',
@@ -47,18 +28,20 @@ export default {
     Spinner,
   },
   mixins: [availabilityMixin, configMixin, routerMixin],
+  setup() {
+    const { prefersDarkMode } = useDarkMode();
+    return { prefersDarkMode };
+  },
   data() {
     return {
       isMobile: false,
+      campaignsSnoozedTill: undefined,
     };
   },
   computed: {
     ...mapGetters({
       activeCampaign: 'campaign/getActiveCampaign',
-      campaigns: 'campaign/getCampaigns',
       conversationSize: 'conversation/getConversationSize',
-      currentUser: 'contacts/getCurrentUser',
-      hasFetched: 'agent/getHasFetched',
       hideMessageBubble: 'appConfig/getHideMessageBubble',
       isFetchingList: 'conversation/getIsFetchingList',
       isRightAligned: 'appConfig/isRightAligned',
@@ -66,6 +49,7 @@ export default {
       messageCount: 'conversation/getMessageCount',
       unreadMessageCount: 'conversation/getUnreadMessageCount',
       isWidgetStyleFlat: 'appConfig/isWidgetStyleFlat',
+      showUnreadMessagesDialog: 'appConfig/getShowUnreadMessagesDialog',
     }),
     isIFrame() {
       return IFrameHelper.isIFrame();
@@ -106,8 +90,9 @@ export default {
       'setReferrerHost',
       'setWidgetColor',
       'setBubbleVisibility',
+      'setColorScheme',
     ]),
-    ...mapActions('conversation', ['fetchOldConversations', 'setUserLastSeen']),
+    ...mapActions('conversation', ['fetchOldConversations']),
     ...mapActions('campaign', [
       'initCampaigns',
       'executeCampaign',
@@ -152,38 +137,48 @@ export default {
       }
     },
     registerUnreadEvents() {
-      bus.$on(ON_AGENT_MESSAGE_RECEIVED, () => {
+      emitter.on(ON_AGENT_MESSAGE_RECEIVED, () => {
         const { name: routeName } = this.$route;
         if ((this.isWidgetOpen || !this.isIFrame) && routeName === 'messages') {
           this.$store.dispatch('conversation/setUserLastSeen');
         }
         this.setUnreadView();
       });
-      bus.$on(ON_UNREAD_MESSAGE_CLICK, () => {
+      emitter.on(ON_UNREAD_MESSAGE_CLICK, () => {
         this.replaceRoute('messages').then(() => this.unsetUnreadView());
       });
     },
     registerCampaignEvents() {
-      bus.$on(ON_CAMPAIGN_MESSAGE_CLICK, () => {
+      emitter.on(ON_CAMPAIGN_MESSAGE_CLICK, () => {
         if (this.shouldShowPreChatForm) {
           this.replaceRoute('prechat-form');
         } else {
           this.replaceRoute('messages');
-          bus.$emit('execute-campaign', { campaignId: this.activeCampaign.id });
+          emitter.emit('execute-campaign', {
+            campaignId: this.activeCampaign.id,
+          });
         }
         this.unsetUnreadView();
       });
-      bus.$on('execute-campaign', campaignDetails => {
+      emitter.on('execute-campaign', campaignDetails => {
         const { customAttributes, campaignId } = campaignDetails;
         const { websiteToken } = window.chatwootWebChannel;
         this.executeCampaign({ campaignId, websiteToken, customAttributes });
         this.replaceRoute('messages');
       });
+      emitter.on('snooze-campaigns', () => {
+        const expireBy = addHours(new Date(), 1);
+        this.campaignsSnoozedTill = Number(expireBy);
+      });
     },
     setCampaignView() {
       const { messageCount, activeCampaign } = this;
+      const shouldSnoozeCampaign =
+        this.campaignsSnoozedTill && this.campaignsSnoozedTill > Date.now();
       const isCampaignReadyToExecute =
-        !isEmptyObject(activeCampaign) && !messageCount;
+        !isEmptyObject(activeCampaign) &&
+        !messageCount &&
+        !shouldSnoozeCampaign;
       if (this.isIFrame && isCampaignReadyToExecute) {
         this.replaceRoute('campaigns').then(() => {
           this.setIframeHeight(true);
@@ -193,8 +188,13 @@ export default {
     },
     setUnreadView() {
       const { unreadMessageCount } = this;
-
-      if (this.isIFrame && unreadMessageCount > 0 && !this.isWidgetOpen) {
+      if (!this.showUnreadMessagesDialog) {
+        this.handleUnreadNotificationDot();
+      } else if (
+        this.isIFrame &&
+        unreadMessageCount > 0 &&
+        !this.isWidgetOpen
+      ) {
         this.replaceRoute('unread-messages').then(() => {
           this.setIframeHeight(true);
           IFrameHelper.sendMessage({ event: 'setUnreadMode' });
@@ -243,6 +243,7 @@ export default {
           this.fetchAvailableAgents(websiteToken);
           this.setAppConfig(message);
           this.$store.dispatch('contacts/get');
+          this.setCampaignReadData(message.campaignsSnoozedTill);
         } else if (message.event === 'widget-visible') {
           this.scrollConversationToBottom();
         } else if (message.event === 'change-url') {
@@ -274,9 +275,21 @@ export default {
             'contacts/deleteCustomAttribute',
             message.customAttribute
           );
+        } else if (message.event === 'set-conversation-custom-attributes') {
+          this.$store.dispatch(
+            'conversation/setCustomAttributes',
+            message.customAttributes
+          );
+        } else if (message.event === 'delete-conversation-custom-attribute') {
+          this.$store.dispatch(
+            'conversation/deleteCustomAttribute',
+            message.customAttribute
+          );
         } else if (message.event === 'set-locale') {
           this.setLocale(message.locale);
           this.setBubbleLabel();
+        } else if (message.event === 'set-color-scheme') {
+          this.setColorScheme(message.darkMode);
         } else if (message.event === 'toggle-open') {
           this.$store.dispatch('appConfig/toggleWidgetOpen', message.isOpen);
 
@@ -310,10 +323,38 @@ export default {
     sendRNWebViewLoadedEvent() {
       RNHelper.sendMessage(loadedEventConfig());
     },
+    setCampaignReadData(snoozedTill) {
+      if (snoozedTill) {
+        this.campaignsSnoozedTill = Number(snoozedTill);
+      }
+    },
   },
 };
 </script>
 
+<template>
+  <div
+    v-if="!conversationSize && isFetchingList"
+    class="flex items-center justify-center flex-1 h-full bg-black-25"
+    :class="{ dark: prefersDarkMode }"
+  >
+    <Spinner size="" />
+  </div>
+  <div
+    v-else
+    class="flex flex-col justify-end h-full"
+    :class="{
+      'is-mobile': isMobile,
+      'is-widget-right': isRightAligned,
+      'is-bubble-hidden': hideMessageBubble,
+      'is-flat-design': isWidgetStyleFlat,
+      dark: prefersDarkMode,
+    }"
+  >
+    <router-view />
+  </div>
+</template>
+
 <style lang="scss">
-@import '~widget/assets/scss/woot.scss';
+@import 'widget/assets/scss/woot.scss';
 </style>

@@ -6,14 +6,17 @@
 #  additional_attributes  :jsonb
 #  agent_last_seen_at     :datetime
 #  assignee_last_seen_at  :datetime
+#  cached_label_list      :text
 #  contact_last_seen_at   :datetime
 #  custom_attributes      :jsonb
 #  first_reply_created_at :datetime
 #  identifier             :string
 #  last_activity_at       :datetime         not null
+#  priority               :integer
 #  snoozed_until          :datetime
 #  status                 :integer          default("open"), not null
 #  uuid                   :uuid             not null
+#  waiting_since          :datetime
 #  created_at             :datetime         not null
 #  updated_at             :datetime         not null
 #  account_id             :integer          not null
@@ -23,10 +26,12 @@
 #  contact_inbox_id       :bigint
 #  display_id             :integer          not null
 #  inbox_id               :integer          not null
+#  sla_policy_id          :bigint
 #  team_id                :bigint
 #
 # Indexes
 #
+#  conv_acid_inbid_stat_asgnid_idx                    (account_id,inbox_id,status,assignee_id)
 #  index_conversations_on_account_id                  (account_id)
 #  index_conversations_on_account_id_and_display_id   (account_id,display_id) UNIQUE
 #  index_conversations_on_assignee_id_and_account_id  (assignee_id,account_id)
@@ -34,23 +39,30 @@
 #  index_conversations_on_contact_id                  (contact_id)
 #  index_conversations_on_contact_inbox_id            (contact_inbox_id)
 #  index_conversations_on_first_reply_created_at      (first_reply_created_at)
+#  index_conversations_on_id_and_account_id           (account_id,id)
 #  index_conversations_on_inbox_id                    (inbox_id)
-#  index_conversations_on_last_activity_at            (last_activity_at)
+#  index_conversations_on_priority                    (priority)
 #  index_conversations_on_status_and_account_id       (status,account_id)
+#  index_conversations_on_status_and_priority         (status,priority)
 #  index_conversations_on_team_id                     (team_id)
 #  index_conversations_on_uuid                        (uuid) UNIQUE
+#  index_conversations_on_waiting_since               (waiting_since)
 #
 
 class Conversation < ApplicationRecord
   include Labelable
+  include LlmFormattable
   include AssignmentHandler
   include AutoAssignmentHandler
   include ActivityMessageHandler
   include UrlHelper
   include SortHandler
+  include PushDataHelper
+  include ConversationMuteHelpers
 
   validates :account_id, presence: true
   validates :inbox_id, presence: true
+  validates :contact_id, presence: true
   before_validation :validate_additional_attributes
   validates :additional_attributes, jsonb_attributes_length: true
   validates :custom_attributes, jsonb_attributes_length: true
@@ -58,10 +70,12 @@ class Conversation < ApplicationRecord
   validate :validate_referer_url
 
   enum status: { open: 0, resolved: 1, pending: 2, snoozed: 3 }
+  enum priority: { low: 0, medium: 1, high: 2, urgent: 3 }
 
   scope :unassigned, -> { where(assignee_id: nil) }
   scope :assigned, -> { where.not(assignee_id: nil) }
   scope :assigned_to, ->(agent) { where(assignee_id: agent.id) }
+  scope :unattended, -> { where(first_reply_created_at: nil).or(where.not(waiting_since: nil)) }
   scope :resolvable, lambda { |auto_resolve_duration|
     return none if auto_resolve_duration.to_i.zero?
 
@@ -77,7 +91,7 @@ class Conversation < ApplicationRecord
 
   belongs_to :account
   belongs_to :inbox
-  belongs_to :assignee, class_name: 'User', optional: true
+  belongs_to :assignee, class_name: 'User', optional: true, inverse_of: :assigned_conversations
   belongs_to :contact
   belongs_to :contact_inbox
   belongs_to :team, optional: true
@@ -88,13 +102,15 @@ class Conversation < ApplicationRecord
   has_one :csat_survey_response, dependent: :destroy_async
   has_many :conversation_participants, dependent: :destroy_async
   has_many :notifications, as: :primary_actor, dependent: :destroy_async
+  has_many :attachments, through: :messages
 
   before_save :ensure_snooze_until_reset
-  before_create :mark_conversation_pending_if_bot
+  before_create :determine_conversation_status
+  before_create :ensure_waiting_since
 
   after_update_commit :execute_after_update_commit_callbacks
   after_create_commit :notify_conversation_creation
-  after_commit :set_display_id, unless: :display_id?
+  after_create_commit :load_attributes_created_by_db_triggers
 
   delegate :auto_resolve_duration, to: :account
 
@@ -107,6 +123,10 @@ class Conversation < ApplicationRecord
 
     messaging_window = inbox.api? ? channel.additional_attributes['agent_reply_time_window'].to_i : 24
     last_message_in_messaging_window?(messaging_window)
+  end
+
+  def last_activity_at
+    self[:last_activity_at] || created_at
   end
 
   def last_incoming_message
@@ -131,10 +151,6 @@ class Conversation < ApplicationRecord
     end
   end
 
-  def update_assignee(agent = nil)
-    update!(assignee: agent)
-  end
-
   def toggle_status
     # FIXME: implement state machine with aasm
     self.status = open? ? :resolved : :open
@@ -142,39 +158,26 @@ class Conversation < ApplicationRecord
     save
   end
 
-  def mute!
-    resolved!
-    Redis::Alfred.setex(mute_key, 1, mute_period)
-    create_muted_message
+  def toggle_priority(priority = nil)
+    self.priority = priority.presence
+    save
   end
 
-  def unmute!
-    Redis::Alfred.delete(mute_key)
-    create_unmuted_message
-  end
-
-  def muted?
-    Redis::Alfred.get(mute_key).present?
+  def bot_handoff!
+    open!
+    dispatcher_dispatch(CONVERSATION_BOT_HANDOFF)
   end
 
   def unread_messages
-    messages.unread_since(agent_last_seen_at)
+    agent_last_seen_at.present? ? messages.created_since(agent_last_seen_at) : messages
   end
 
   def unread_incoming_messages
-    messages.incoming.unread_since(agent_last_seen_at)
+    unread_messages.where(account_id: account_id).incoming.last(10)
   end
 
-  def push_event_data
-    Conversations::EventDataPresenter.new(self).push_data
-  end
-
-  def lock_event_data
-    Conversations::EventDataPresenter.new(self).lock_data
-  end
-
-  def webhook_data
-    Conversations::EventDataPresenter.new(self).push_data
+  def cached_label_list_array
+    (cached_label_list || '').split(',').map(&:strip)
   end
 
   def notifiable_assignee_change?
@@ -193,6 +196,14 @@ class Conversation < ApplicationRecord
     messages.chat.last(5)
   end
 
+  def csat_survey_link
+    "#{ENV.fetch('FRONTEND_URL', nil)}/survey/responses/#{uuid}"
+  end
+
+  def dispatch_conversation_updated_event(previous_changes = nil)
+    dispatcher_dispatch(CONVERSATION_UPDATED, previous_changes)
+  end
+
   private
 
   def execute_after_update_commit_callbacks
@@ -205,11 +216,21 @@ class Conversation < ApplicationRecord
     self.snoozed_until = nil unless snoozed?
   end
 
+  def ensure_waiting_since
+    self.waiting_since = created_at
+  end
+
   def validate_additional_attributes
     self.additional_attributes = {} unless additional_attributes.is_a?(Hash)
   end
 
-  def mark_conversation_pending_if_bot
+  def determine_conversation_status
+    self.status = :resolved and return if contact.blocked?
+
+    # Message template hooks aren't executed for conversations from campaigns
+    # So making these conversations open for agent visibility
+    return if campaign.present?
+
     # TODO: make this an inbox config instead of assuming bot conversations should start as pending
     self.status = :pending if inbox.active_bot?
   end
@@ -219,18 +240,34 @@ class Conversation < ApplicationRecord
   end
 
   def notify_conversation_updation
-    return unless previous_changes.keys.present? && (previous_changes.keys & %w[team_id assignee_id status snoozed_until
-                                                                                custom_attributes label_list first_reply_created_at]).present?
+    return unless previous_changes.keys.present? && allowed_keys?
 
-    dispatcher_dispatch(CONVERSATION_UPDATED, previous_changes)
+    dispatch_conversation_updated_event(previous_changes)
+  end
+
+  def list_of_keys
+    %w[team_id assignee_id status snoozed_until custom_attributes label_list waiting_since first_reply_created_at
+       priority]
+  end
+
+  def allowed_keys?
+    (
+      previous_changes.keys.intersect?(list_of_keys) ||
+      (previous_changes['additional_attributes'].present? && previous_changes['additional_attributes'][1].keys.intersect?(%w[conversation_language]))
+    )
   end
 
   def self_assign?(assignee_id)
     assignee_id.present? && Current.user&.id == assignee_id
   end
 
-  def set_display_id
-    reload
+  def load_attributes_created_by_db_triggers
+    # Display id is set via a trigger in the database
+    # So we need to specifically fetch it after the record is created
+    # We can't use reload because it will clear the previous changes, which we need for the dispatcher
+    obj_from_db = self.class.find(id)
+    self[:display_id] = obj_from_db[:display_id]
+    self[:uuid] = obj_from_db[:uuid]
   end
 
   def notify_status_change
@@ -269,14 +306,6 @@ class Conversation < ApplicationRecord
     create_label_removed(user_name, previous_labels - current_labels)
   end
 
-  def mute_key
-    format(Redis::RedisKeys::CONVERSATION_MUTE_KEY, id: id)
-  end
-
-  def mute_period
-    6.hours
-  end
-
   def validate_referer_url
     return unless additional_attributes['referer']
 
@@ -288,3 +317,6 @@ class Conversation < ApplicationRecord
     "NEW.display_id := nextval('conv_dpid_seq_' || NEW.account_id);"
   end
 end
+
+Conversation.include_mod_with('Concerns::Conversation')
+Conversation.prepend_mod_with('Conversation')

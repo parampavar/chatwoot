@@ -9,30 +9,32 @@ class Whatsapp::IncomingMessageBaseService
   def perform
     processed_params
 
-    if processed_params[:statuses].present?
+    if processed_params.try(:[], :statuses).present?
       process_statuses
-    elsif processed_params[:messages].present?
+    elsif processed_params.try(:[], :messages).present?
       process_messages
     end
   end
 
   private
 
-  def find_message_by_source_id(source_id)
-    return unless source_id
-
-    @message = Message.find_by(source_id: source_id)
-  end
-
   def process_messages
-    # message allready exists so we don't need to process
-    return if find_message_by_source_id(@processed_params[:messages].first[:id])
+    # We don't support reactions & ephemeral message now, we need to skip processing the message
+    # if the webhook event is a reaction or an ephermal message or an unsupported message.
+    return if unprocessable_message_type?(message_type)
 
+    # Multiple webhook event can be received against the same message due to misconfigurations in the Meta
+    # business manager account. While we have not found the core reason yet, the following line ensure that
+    # there are no duplicate messages created.
+    return if find_message_by_source_id(@processed_params[:messages].first[:id]) || message_under_process?
+
+    cache_message_source_id_in_redis
     set_contact
     return unless @contact
 
     set_conversation
     create_messages
+    clear_message_source_id_from_redis
   end
 
   def process_statuses
@@ -53,14 +55,12 @@ class Whatsapp::IncomingMessageBaseService
   end
 
   def create_messages
-    return if unprocessable_message_type?(message_type)
-
     message = @processed_params[:messages].first
-    if message_type == 'contacts'
-      create_contact_messages(message)
-    else
-      create_regular_message(message)
-    end
+    log_error(message) && return if error_webhook_event?(message)
+
+    process_in_reply_to(message)
+
+    message_type == 'contacts' ? create_contact_messages(message) : create_regular_message(message)
   end
 
   def create_contact_messages(message)
@@ -82,8 +82,10 @@ class Whatsapp::IncomingMessageBaseService
     contact_params = @processed_params[:contacts]&.first
     return if contact_params.blank?
 
+    waid = processed_waid(contact_params[:wa_id])
+
     contact_inbox = ::ContactInboxWithContactBuilder.new(
-      source_id: contact_params[:wa_id],
+      source_id: waid,
       inbox: inbox,
       contact_attributes: { name: contact_params.dig(:profile, :name), phone_number: "+#{@processed_params[:messages].first[:from]}" }
     ).perform
@@ -93,7 +95,13 @@ class Whatsapp::IncomingMessageBaseService
   end
 
   def set_conversation
-    @conversation = @contact_inbox.conversations.last
+    # if lock to single conversation is disabled, we will create a new conversation if previous conversation is resolved
+    @conversation = if @inbox.lock_to_single_conversation
+                      @contact_inbox.conversations.last
+                    else
+                      @contact_inbox.conversations
+                                    .where.not(status: :resolved).last
+                    end
     return if @conversation
 
     @conversation = ::Conversation.create!(conversation_params)
@@ -139,7 +147,8 @@ class Whatsapp::IncomingMessageBaseService
       inbox_id: @inbox.id,
       message_type: :incoming,
       sender: @contact,
-      source_id: message[:id].to_s
+      source_id: message[:id].to_s,
+      in_reply_to_external_id: @in_reply_to_external_id
     )
   end
 

@@ -7,10 +7,11 @@ describe Whatsapp::IncomingMessageService do
     end
 
     let!(:whatsapp_channel) { create(:channel_whatsapp, sync_templates: false) }
+    let(:wa_id) { '2423423243' }
     let!(:params) do
       {
-        'contacts' => [{ 'profile' => { 'name' => 'Sojan Jose' }, 'wa_id' => '2423423243' }],
-        'messages' => [{ 'from' => '2423423243', 'id' => 'SDFADSf23sfasdafasdfa', 'text' => { 'body' => 'Test' },
+        'contacts' => [{ 'profile' => { 'name' => 'Sojan Jose' }, 'wa_id' => wa_id }],
+        'messages' => [{ 'from' => wa_id, 'id' => 'SDFADSf23sfasdafasdfa', 'text' => { 'body' => 'Test' },
                          'timestamp' => '1633034394', 'type' => 'text' }]
       }.with_indifferent_access
     end
@@ -34,6 +35,41 @@ describe Whatsapp::IncomingMessageService do
         expect(last_conversation.messages.last.content).to eq(params[:messages].first[:text][:body])
       end
 
+      it 'reopen last conversation if last conversation is resolved and lock to single conversation is enabled' do
+        whatsapp_channel.inbox.update(lock_to_single_conversation: true)
+        contact_inbox = create(:contact_inbox, inbox: whatsapp_channel.inbox, source_id: params[:messages].first[:from])
+        last_conversation = create(:conversation, inbox: whatsapp_channel.inbox, contact_inbox: contact_inbox)
+        last_conversation.update(status: 'resolved')
+        described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
+        # no new conversation should be created
+        expect(whatsapp_channel.inbox.conversations.count).to eq(1)
+        # message appended to the last conversation
+        expect(last_conversation.messages.last.content).to eq(params[:messages].first[:text][:body])
+        expect(last_conversation.reload.status).to eq('open')
+      end
+
+      it 'creates a new conversation if last conversation is resolved and lock to single conversation is disabled' do
+        whatsapp_channel.inbox.update(lock_to_single_conversation: false)
+        contact_inbox = create(:contact_inbox, inbox: whatsapp_channel.inbox, source_id: params[:messages].first[:from])
+        last_conversation = create(:conversation, inbox: whatsapp_channel.inbox, contact_inbox: contact_inbox)
+        last_conversation.update(status: 'resolved')
+        described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
+        # new conversation should be created
+        expect(whatsapp_channel.inbox.conversations.count).to eq(2)
+        expect(contact_inbox.conversations.last.messages.last.content).to eq(params[:messages].first[:text][:body])
+      end
+
+      it 'will not create a new conversation if last conversation is not resolved and lock to single conversation is disabled' do
+        whatsapp_channel.inbox.update(lock_to_single_conversation: false)
+        contact_inbox = create(:contact_inbox, inbox: whatsapp_channel.inbox, source_id: params[:messages].first[:from])
+        last_conversation = create(:conversation, inbox: whatsapp_channel.inbox, contact_inbox: contact_inbox)
+        last_conversation.update(status: Conversation.statuses.except('resolved').keys.sample)
+        described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
+        # new conversation should be created
+        expect(whatsapp_channel.inbox.conversations.count).to eq(1)
+        expect(contact_inbox.conversations.last.messages.last.content).to eq(params[:messages].first[:text][:body])
+      end
+
       it 'will not create duplicate messages when same message is received' do
         described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
         expect(whatsapp_channel.inbox.messages.count).to eq(1)
@@ -45,7 +81,7 @@ describe Whatsapp::IncomingMessageService do
     end
 
     context 'when unsupported message types' do
-      it 'ignores type ephemeral' do
+      it 'ignores type ephemeral and does not create ghost conversation' do
         params = {
           'contacts' => [{ 'profile' => { 'name' => 'Sojan Jose' }, 'wa_id' => '2423423243' }],
           'messages' => [{ 'from' => '2423423243', 'id' => 'SDFADSf23sfasdafasdfa', 'text' => { 'body' => 'Test' },
@@ -53,12 +89,12 @@ describe Whatsapp::IncomingMessageService do
         }.with_indifferent_access
 
         described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
-        expect(whatsapp_channel.inbox.conversations.count).not_to eq(0)
-        expect(Contact.all.first.name).to eq('Sojan Jose')
+        expect(whatsapp_channel.inbox.conversations.count).to eq(0)
+        expect(Contact.count).to eq(0)
         expect(whatsapp_channel.inbox.messages.count).to eq(0)
       end
 
-      it 'ignores type unsupported' do
+      it 'ignores type unsupported and does not create ghost conversation' do
         params = {
           'contacts' => [{ 'profile' => { 'name' => 'Sojan Jose' }, 'wa_id' => '2423423243' }],
           'messages' => [{
@@ -69,8 +105,8 @@ describe Whatsapp::IncomingMessageService do
         }.with_indifferent_access
 
         described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
-        expect(whatsapp_channel.inbox.conversations.count).not_to eq(0)
-        expect(Contact.all.first.name).to eq('Sojan Jose')
+        expect(whatsapp_channel.inbox.conversations.count).to eq(0)
+        expect(Contact.count).to eq(0)
         expect(whatsapp_channel.inbox.messages.count).to eq(0)
       end
     end
@@ -244,6 +280,98 @@ describe Whatsapp::IncomingMessageService do
         contact_attachments = m2.attachments.first
         expect(m2.content).to eq('Chatwoot')
         expect(contact_attachments.fallback_title).to eq('+1 (415) 341-8386')
+      end
+    end
+
+    # ref: https://github.com/chatwoot/chatwoot/issues/5840
+    describe 'When the incoming waid is a brazilian number in new format with 9 included' do
+      let(:wa_id) { '5541988887777' }
+
+      it 'creates appropriate conversations, message and contacts if contact does not exit' do
+        described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
+        expect(whatsapp_channel.inbox.conversations.count).not_to eq(0)
+        expect(Contact.all.first.name).to eq('Sojan Jose')
+        expect(whatsapp_channel.inbox.messages.first.content).to eq('Test')
+        expect(whatsapp_channel.inbox.contact_inboxes.first.source_id).to eq(wa_id)
+      end
+
+      it 'appends to existing contact if contact inbox exists' do
+        contact_inbox = create(:contact_inbox, inbox: whatsapp_channel.inbox, source_id: wa_id)
+        last_conversation = create(:conversation, inbox: whatsapp_channel.inbox, contact_inbox: contact_inbox)
+        described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
+        # no new conversation should be created
+        expect(whatsapp_channel.inbox.conversations.count).to eq(1)
+        # message appended to the last conversation
+        expect(last_conversation.messages.last.content).to eq(params[:messages].first[:text][:body])
+      end
+    end
+
+    describe 'When incoming waid is a brazilian number in old format without the 9 included' do
+      let(:wa_id) { '554188887777' }
+
+      context 'when a contact inbox exists in the old format without 9 included' do
+        it 'appends to existing contact' do
+          contact_inbox = create(:contact_inbox, inbox: whatsapp_channel.inbox, source_id: wa_id)
+          last_conversation = create(:conversation, inbox: whatsapp_channel.inbox, contact_inbox: contact_inbox)
+          described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
+          # no new conversation should be created
+          expect(whatsapp_channel.inbox.conversations.count).to eq(1)
+          # message appended to the last conversation
+          expect(last_conversation.messages.last.content).to eq(params[:messages].first[:text][:body])
+        end
+      end
+
+      context 'when a contact inbox exists in the new format with 9 included' do
+        it 'appends to existing contact' do
+          contact_inbox = create(:contact_inbox, inbox: whatsapp_channel.inbox, source_id: '5541988887777')
+          last_conversation = create(:conversation, inbox: whatsapp_channel.inbox, contact_inbox: contact_inbox)
+          described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
+          # no new conversation should be created
+          expect(whatsapp_channel.inbox.conversations.count).to eq(1)
+          # message appended to the last conversation
+          expect(last_conversation.messages.last.content).to eq(params[:messages].first[:text][:body])
+        end
+      end
+
+      context 'when a contact inbox does not exist in the new format with 9 included' do
+        it 'creates contact inbox with the incoming waid' do
+          described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
+          expect(whatsapp_channel.inbox.conversations.count).not_to eq(0)
+          expect(Contact.all.first.name).to eq('Sojan Jose')
+          expect(whatsapp_channel.inbox.messages.first.content).to eq('Test')
+          expect(whatsapp_channel.inbox.contact_inboxes.first.source_id).to eq(wa_id)
+        end
+      end
+    end
+
+    describe 'when message processing is in progress' do
+      it 'ignores the current message creation request' do
+        params = { 'contacts' => [{ 'profile' => { 'name' => 'Kedar' }, 'wa_id' => '919746334593' }],
+                   'messages' => [{ 'from' => '919446284490',
+                                    'id' => 'wamid.SDFADSf23sfasdafasdfa',
+                                    'timestamp' => '1675823265',
+                                    'type' => 'contacts',
+                                    'contacts' => [
+                                      {
+                                        'name' => { 'formatted_name' => 'Apple Inc.' },
+                                        'phones' => [{ 'phone' => '+911800', 'type' => 'MAIN' }]
+                                      },
+                                      { 'name' => { 'first_name' => 'Chatwoot', 'formatted_name' => 'Chatwoot' },
+                                        'phones' => [{ 'phone' => '+1 (415) 341-8386' }] }
+                                    ] }] }.with_indifferent_access
+
+        expect(Message.find_by(source_id: 'wamid.SDFADSf23sfasdafasdfa')).not_to be_present
+        key = format(Redis::RedisKeys::MESSAGE_SOURCE_KEY, id: 'wamid.SDFADSf23sfasdafasdfa')
+
+        Redis::Alfred.setex(key, true)
+        expect(Redis::Alfred.get(key)).to be_truthy
+
+        described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
+        expect(whatsapp_channel.inbox.messages.count).to eq(0)
+        expect(Message.find_by(source_id: 'wamid.SDFADSf23sfasdafasdfa')).not_to be_present
+
+        expect(Redis::Alfred.get(key)).to be_truthy
+        Redis::Alfred.delete(key)
       end
     end
   end

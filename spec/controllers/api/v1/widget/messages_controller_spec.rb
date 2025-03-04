@@ -7,7 +7,7 @@ RSpec.describe '/api/v1/widget/messages', type: :request do
   let(:contact_inbox) { create(:contact_inbox, contact: contact, inbox: web_widget.inbox) }
   let(:conversation) { create(:conversation, contact: contact, account: account, inbox: web_widget.inbox, contact_inbox: contact_inbox) }
   let(:payload) { { source_id: contact_inbox.source_id, inbox_id: web_widget.inbox.id } }
-  let(:token) { ::Widget::TokenService.new(payload: payload).generate_token }
+  let(:token) { Widget::TokenService.new(payload: payload).generate_token }
 
   before do |example|
     2.times.each { create(:message, account: account, inbox: web_widget.inbox, conversation: conversation) } unless example.metadata[:skip_before]
@@ -22,7 +22,7 @@ RSpec.describe '/api/v1/widget/messages', type: :request do
             as: :json
 
         expect(response).to have_http_status(:success)
-        json_response = JSON.parse(response.body)
+        json_response = response.parsed_body
         # 2 messages created + 2 messages by the email hook
         expect(json_response['payload'].length).to eq(4)
         expect(json_response['meta']).not_to be_empty
@@ -35,7 +35,7 @@ RSpec.describe '/api/v1/widget/messages', type: :request do
             as: :json
 
         expect(response).to have_http_status(:success)
-        json_response = JSON.parse(response.body)
+        json_response = response.parsed_body
         expect(json_response['payload'].length).to eq(0)
       end
     end
@@ -52,7 +52,7 @@ RSpec.describe '/api/v1/widget/messages', type: :request do
              as: :json
 
         expect(response).to have_http_status(:success)
-        json_response = JSON.parse(response.body)
+        json_response = response.parsed_body
         expect(json_response['content']).to eq(message_params[:content])
       end
 
@@ -66,9 +66,38 @@ RSpec.describe '/api/v1/widget/messages', type: :request do
 
         expect(response).to have_http_status(:unprocessable_entity)
 
-        json_response = JSON.parse(response.body)
+        json_response = response.parsed_body
 
         expect(json_response['message']).to eq('Content is too long (maximum is 150000 characters)')
+      end
+
+      it 'creates message in conversation with a valid reply to' do
+        message_params = { content: 'hello world reply', timestamp: Time.current, reply_to: conversation.messages.first.id }
+        post api_v1_widget_messages_url,
+             params: { website_token: web_widget.website_token, message: message_params },
+             headers: { 'X-Auth-Token' => token },
+             as: :json
+
+        expect(response).to have_http_status(:success)
+        json_response = response.parsed_body
+        expect(json_response['content']).to eq(message_params[:content])
+        expect(json_response['content_attributes']['in_reply_to']).to eq(conversation.messages.first.id)
+        # check nil for external id since this is a web widget conversation
+        expect(json_response['content_attributes']['in_reply_to_external_id']).to be_nil
+      end
+
+      it 'creates message in conversation with an in-valid reply to' do
+        message_params = { content: 'hello world reply', timestamp: Time.current, reply_to: conversation.messages.first.id + 300 }
+        post api_v1_widget_messages_url,
+             params: { website_token: web_widget.website_token, message: message_params },
+             headers: { 'X-Auth-Token' => token },
+             as: :json
+
+        expect(response).to have_http_status(:success)
+        json_response = response.parsed_body
+        expect(json_response['content']).to eq(message_params[:content])
+        expect(json_response['content_attributes']['in_reply_to']).to be_nil
+        expect(json_response['content_attributes']['in_reply_to_external_id']).to be_nil
       end
 
       it 'creates attachment message in conversation' do
@@ -79,7 +108,7 @@ RSpec.describe '/api/v1/widget/messages', type: :request do
              headers: { 'X-Auth-Token' => token }
 
         expect(response).to have_http_status(:success)
-        json_response = JSON.parse(response.body)
+        json_response = response.parsed_body
         expect(json_response['content']).to eq(message_params[:content])
 
         expect(conversation.messages.last.attachments.first.file.present?).to be(true)
@@ -138,6 +167,7 @@ RSpec.describe '/api/v1/widget/messages', type: :request do
         message.reload
         expect(message.submitted_email).to eq(email)
         expect(message.conversation.contact.email).to eq(email)
+        expect(message.conversation.contact.name).to eq(email.split('@')[0])
       end
     end
 
@@ -158,7 +188,7 @@ RSpec.describe '/api/v1/widget/messages', type: :request do
       it 'updates message in conversation and deletes the current contact' do
         message = create(:message, account: account, content_type: 'input_email', inbox: web_widget.inbox, conversation: conversation)
         email = Faker::Internet.email
-        create(:contact, account: account, email: email)
+        existing_contact = create(:contact, account: account, email: email, name: 'John Doe')
         contact_params = { email: email }
         put api_v1_widget_message_url(message.id),
             params: { website_token: web_widget.website_token, contact: contact_params },
@@ -167,6 +197,7 @@ RSpec.describe '/api/v1/widget/messages', type: :request do
 
         expect(response).to have_http_status(:success)
         message.reload
+        expect(existing_contact.reload.name).to eq('John Doe')
         expect { contact.reload }.to raise_error(ActiveRecord::RecordNotFound)
       end
 

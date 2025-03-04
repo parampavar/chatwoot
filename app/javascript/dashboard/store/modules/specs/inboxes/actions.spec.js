@@ -3,14 +3,26 @@ import { actions } from '../../inboxes';
 import * as types from '../../../mutation-types';
 import inboxList from './fixtures';
 
-const commit = jest.fn();
+const commit = vi.fn();
 global.axios = axios;
-jest.mock('axios');
+vi.mock('axios');
 
 describe('#actions', () => {
   describe('#get', () => {
     it('sends correct actions if API is success', async () => {
-      axios.get.mockResolvedValue({ data: { payload: inboxList } });
+      const mockedGet = vi.fn(url => {
+        if (url === '/api/v1/inboxes') {
+          return Promise.resolve({ data: { payload: inboxList } });
+        }
+        if (url === '/api/v1/accounts//cache_keys') {
+          return Promise.resolve({ data: { cache_keys: { inboxes: 0 } } });
+        }
+        // Return default value or throw an error for unexpected requests
+        return Promise.reject(new Error('Unexpected request: ' + url));
+      });
+
+      axios.get = mockedGet;
+
       await actions.get({ commit });
       expect(commit.mock.calls).toEqual([
         [types.default.SET_INBOXES_UI_FLAG, { isFetching: true }],

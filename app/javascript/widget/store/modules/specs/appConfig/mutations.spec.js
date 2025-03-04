@@ -24,4 +24,20 @@ describe('#mutations', () => {
       expect(state.widgetColor).toEqual('#00bcd4');
     });
   });
+
+  describe('#SET_COLOR_SCHEME', () => {
+    it('sets dark mode properly', () => {
+      const state = { darkMode: 'light' };
+      mutations.SET_COLOR_SCHEME(state, 'dark');
+      expect(state.darkMode).toEqual('dark');
+    });
+  });
+
+  describe('#SET_ROUTE_UPDATE_STATE', () => {
+    it('sets dark mode properly', () => {
+      const state = { isUpdatingRoute: false };
+      mutations.SET_ROUTE_UPDATE_STATE(state, true);
+      expect(state.isUpdatingRoute).toEqual(true);
+    });
+  });
 });

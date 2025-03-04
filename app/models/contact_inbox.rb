@@ -33,6 +33,13 @@ class ContactInbox < ApplicationRecord
 
   has_many :conversations, dependent: :destroy_async
 
+  # contact_inboxes that are not associated with any conversation
+  scope :stale_without_conversations, lambda { |time_period|
+    left_joins(:conversations)
+      .where('contact_inboxes.created_at < ?', time_period)
+      .where(conversations: { contact_id: nil })
+  }
+
   def webhook_data
     {
       id: id,
@@ -59,10 +66,6 @@ class ContactInbox < ApplicationRecord
     end
   end
 
-  def validate_email_source_id
-    errors.add(:source_id, "invalid source id for Email inbox. valid Regex #{Devise.email_regexp}") unless Devise.email_regexp.match?(source_id)
-  end
-
   def validate_whatsapp_source_id
     return if WHATSAPP_CHANNEL_REGEX.match?(source_id)
 
@@ -71,7 +74,6 @@ class ContactInbox < ApplicationRecord
 
   def valid_source_id_format?
     validate_twilio_source_id if inbox.channel_type == 'Channel::TwilioSms'
-    validate_email_source_id if inbox.channel_type == 'Channel::Email'
     validate_whatsapp_source_id if inbox.channel_type == 'Channel::Whatsapp'
   end
 end

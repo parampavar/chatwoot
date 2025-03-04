@@ -1,16 +1,22 @@
 require 'net/imap'
 
-class Inboxes::FetchImapEmailsJob < ApplicationJob
-  queue_as :low
+class Inboxes::FetchImapEmailsJob < MutexApplicationJob
+  queue_as :scheduled_jobs
 
-  def perform(channel)
+  def perform(channel, interval = 1)
     return unless should_fetch_email?(channel)
 
-    process_email_for_channel(channel)
-  rescue *ExceptionList::IMAP_EXCEPTIONS
-    channel.authorization_error!
-  rescue EOFError => e
-    Rails.logger.error e
+    key = format(::Redis::Alfred::EMAIL_MESSAGE_MUTEX, inbox_id: channel.inbox.id)
+
+    with_lock(key, 5.minutes) do
+      process_email_for_channel(channel, interval)
+    end
+  rescue *ExceptionList::IMAP_EXCEPTIONS => e
+    Rails.logger.error "Authorization error for email channel - #{channel.inbox.id} : #{e.message}"
+  rescue EOFError, OpenSSL::SSL::SSLError, Net::IMAP::NoResponseError, Net::IMAP::BadResponseError, Net::IMAP::InvalidResponseError => e
+    Rails.logger.error "Error for email channel - #{channel.inbox.id} : #{e.message}"
+  rescue LockAcquisitionError
+    Rails.logger.error "Lock failed for #{channel.inbox.id}"
   rescue StandardError => e
     ChatwootExceptionTracker.new(e, account: channel.account).capture_exception
   end
@@ -21,80 +27,27 @@ class Inboxes::FetchImapEmailsJob < ApplicationJob
     channel.imap_enabled? && !channel.reauthorization_required?
   end
 
-  def process_email_for_channel(channel)
-    # fetching email for microsoft provider
-    if channel.microsoft?
-      fetch_mail_for_ms_provider(channel)
-    else
-      fetch_mail_for_channel(channel)
-    end
-    # clearing old failures like timeouts since the mail is now successfully processed
-    channel.reauthorized!
-  end
-
-  def fetch_mail_for_channel(channel)
-    # TODO: rather than setting this as default method for all mail objects, lets if can do new mail object
-    # using Mail.retriever_method.new(params)
-    Mail.defaults do
-      retriever_method :imap, address: channel.imap_address,
-                              port: channel.imap_port,
-                              user_name: channel.imap_login,
-                              password: channel.imap_password,
-                              enable_ssl: channel.imap_enable_ssl
-    end
-
-    Mail.find(what: :last, count: 10, order: :asc).each do |inbound_mail|
-      next if channel.inbox.messages.find_by(source_id: inbound_mail.message_id).present?
-
+  def process_email_for_channel(channel, interval)
+    inbound_emails = if channel.microsoft?
+                       Imap::MicrosoftFetchEmailService.new(channel: channel, interval: interval).perform
+                     elsif channel.google?
+                       Imap::GoogleFetchEmailService.new(channel: channel, interval: interval).perform
+                     else
+                       Imap::FetchEmailService.new(channel: channel, interval: interval).perform
+                     end
+    inbound_emails.map do |inbound_mail|
       process_mail(inbound_mail, channel)
     end
-  end
-
-  def fetch_mail_for_ms_provider(channel)
-    return if channel.provider_config['access_token'].blank?
-
-    access_token = valid_access_token channel
-
-    return unless access_token
-
-    imap = imap_authenticate(channel, access_token)
-
-    process_mails(imap, channel)
-  end
-
-  def process_mails(imap, channel)
-    imap.search(['BEFORE', tomorrow, 'SINCE', yesterday]).each do |message_id|
-      inbound_mail = Mail.read_from_string imap.fetch(message_id, 'RFC822')[0].attr['RFC822']
-
-      next if channel.inbox.messages.find_by(source_id: inbound_mail.message_id).present?
-
-      process_mail(inbound_mail, channel)
-    end
-  end
-
-  def imap_authenticate(channel, access_token)
-    imap = Net::IMAP.new(channel.imap_address, channel.imap_port, true)
-    imap.authenticate('XOAUTH2', channel.imap_login, access_token)
-    imap.select('INBOX')
-    imap
-  end
-
-  def yesterday
-    (Time.zone.today - 1).strftime('%d-%b-%Y')
-  end
-
-  def tomorrow
-    (Time.zone.today + 1).strftime('%d-%b-%Y')
+  rescue OAuth2::Error => e
+    Rails.logger.error "Error for email channel - #{channel.inbox.id} : #{e.message}"
+    channel.authorization_error!
   end
 
   def process_mail(inbound_mail, channel)
     Imap::ImapMailbox.new.process(inbound_mail, channel)
   rescue StandardError => e
     ChatwootExceptionTracker.new(e, account: channel.account).capture_exception
-  end
-
-  # Making sure the access token is valid for microsoft provider
-  def valid_access_token(channel)
-    Microsoft::RefreshOauthTokenService.new(channel: channel).access_token
+    Rails.logger.error("
+      #{channel.provider} Email dropped: #{inbound_mail.from} and message_source_id: #{inbound_mail.message_id}")
   end
 end

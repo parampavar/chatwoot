@@ -1,33 +1,10 @@
-<template>
-  <div class="conversation--container" :class="colorSchemeClass">
-    <div class="conversation-wrap" :class="{ 'is-typing': isAgentTyping }">
-      <div v-if="isFetchingList" class="message--loader">
-        <spinner />
-      </div>
-      <div
-        v-for="groupedMessage in groupedMessages"
-        :key="groupedMessage.date"
-        class="messages-wrap"
-      >
-        <date-separator :date="groupedMessage.date" />
-        <chat-message
-          v-for="message in groupedMessage.messages"
-          :key="message.id"
-          :message="message"
-        />
-      </div>
-      <agent-typing-bubble v-if="isAgentTyping" />
-    </div>
-  </div>
-</template>
-
 <script>
 import ChatMessage from 'widget/components/ChatMessage.vue';
 import AgentTypingBubble from 'widget/components/AgentTypingBubble.vue';
 import DateSeparator from 'shared/components/DateSeparator.vue';
 import Spinner from 'shared/components/Spinner.vue';
-import darkModeMixin from 'widget/mixins/darkModeMixin';
-
+import { useDarkMode } from 'widget/composables/useDarkMode';
+import { MESSAGE_TYPE } from 'shared/constants/messages';
 import { mapActions, mapGetters } from 'vuex';
 
 export default {
@@ -38,12 +15,15 @@ export default {
     DateSeparator,
     Spinner,
   },
-  mixins: [darkModeMixin],
   props: {
     groupedMessages: {
       type: Array,
       default: () => [],
     },
+  },
+  setup() {
+    const { darkMode } = useDarkMode();
+    return { darkMode };
   },
   data() {
     return {
@@ -54,13 +34,25 @@ export default {
   computed: {
     ...mapGetters({
       earliestMessage: 'conversation/getEarliestMessage',
+      lastMessage: 'conversation/getLastMessage',
       allMessagesLoaded: 'conversation/getAllMessagesLoaded',
       isFetchingList: 'conversation/getIsFetchingList',
       conversationSize: 'conversation/getConversationSize',
       isAgentTyping: 'conversation/getIsAgentTyping',
+      conversationAttributes: 'conversationAttributes/getConversationParams',
     }),
     colorSchemeClass() {
-      return `${this.darkMode === 'light' ? 'light' : 'dark'}`;
+      return `${this.darkMode === 'dark' ? 'dark-scheme' : 'light-scheme'}`;
+    },
+    showStatusIndicator() {
+      const { status } = this.conversationAttributes;
+      const isConversationInPendingStatus = status === 'pending';
+      const isLastMessageIncoming =
+        this.lastMessage.message_type === MESSAGE_TYPE.INCOMING;
+      return (
+        this.isAgentTyping ||
+        (isConversationInPendingStatus && isLastMessageIncoming)
+      );
     },
   },
   watch: {
@@ -106,9 +98,32 @@ export default {
 };
 </script>
 
+<template>
+  <div class="conversation--container" :class="colorSchemeClass">
+    <div class="conversation-wrap" :class="{ 'is-typing': isAgentTyping }">
+      <div v-if="isFetchingList" class="message--loader">
+        <Spinner />
+      </div>
+      <div
+        v-for="groupedMessage in groupedMessages"
+        :key="groupedMessage.date"
+        class="messages-wrap"
+      >
+        <DateSeparator :date="groupedMessage.date" />
+        <ChatMessage
+          v-for="message in groupedMessage.messages"
+          :key="message.id"
+          :message="message"
+        />
+      </div>
+      <AgentTypingBubble v-if="showStatusIndicator" />
+    </div>
+  </div>
+</template>
+
 <style scoped lang="scss">
-@import '~widget/assets/scss/variables.scss';
-@import '~widget/assets/scss/mixins.scss';
+@import 'widget/assets/scss/variables.scss';
+@import 'widget/assets/scss/mixins.scss';
 
 .conversation--container {
   display: flex;
@@ -117,10 +132,11 @@ export default {
   overflow-y: auto;
   color-scheme: light dark;
 
-  &.light {
+  &.light-scheme {
     color-scheme: light;
   }
-  &.dark {
+
+  &.dark-scheme {
     color-scheme: dark;
   }
 }

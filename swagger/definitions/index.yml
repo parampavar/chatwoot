@@ -18,6 +18,16 @@ custom_attribute:
   $ref: ./resource/custom_attribute.yml
 automation_rule:
   $ref: ./resource/automation_rule.yml
+portal:
+  $ref: ./resource/portal.yml
+category:
+  $ref: ./resource/category.yml
+article:
+  $ref: ./resource/article.yml
+category:
+  $ref: ./resource/category.yml
+article:
+  $ref: ./resource/article.yml
 contact:
   $ref: ./resource/contact.yml
 conversation:
@@ -110,6 +120,14 @@ integrations_hook_update_payload:
 automation_rule_create_update_payload:
   $ref: ./request/automation_rule/create_update_payload.yml
 
+# Help Center
+portal_create_update_payload:
+  $ref: ./request/portal/portal_create_update_payload.yml
+category_create_update_payload:
+  $ref: ./request/portal/category_create_update_payload.yml
+article_create_update_payload:
+  $ref: ./request/portal/article_create_update_payload.yml
+
 
 ## public requests
 public_contact_create_update_payload:
@@ -119,6 +137,9 @@ public_message_create_payload:
   $ref: ./request/public/message/create_payload.yml
 public_message_update_payload:
   $ref: ./request/public/message/update_payload.yml
+
+public_conversation_create_payload:
+  $ref: ./request/public/conversation/create_payload.yml
 
 ##  ---------- RESPONSE ------------- ##
 ## -------------------------------- ##
@@ -147,6 +168,8 @@ contact_conversations:
       - $ref: '#/definitions/conversation'
       - $ref: ./resource/extension/contact/conversation.yml
       - $ref: ./resource/extension/conversation/with_display_id.yml
+contact_labels:
+  $ref: ./resource/extension/contact/labels.yml
 
 ## conversation
 conversation_list:

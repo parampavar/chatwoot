@@ -7,7 +7,7 @@ RSpec.describe '/api/v1/widget/integrations/dyte', type: :request do
   let(:contact_inbox) { create(:contact_inbox, contact: contact, inbox: web_widget.inbox) }
   let(:conversation) { create(:conversation, contact: contact, account: account, inbox: web_widget.inbox, contact_inbox: contact_inbox) }
   let(:payload) { { source_id: contact_inbox.source_id, inbox_id: web_widget.inbox.id } }
-  let(:token) { ::Widget::TokenService.new(payload: payload).generate_token }
+  let(:token) { Widget::TokenService.new(payload: payload).generate_token }
   let(:message) { create(:message, conversation: conversation, account: account, inbox: conversation.inbox) }
   let!(:integration_message) do
     create(:message, content_type: 'integrations',
@@ -39,32 +39,32 @@ RSpec.describe '/api/v1/widget/integrations/dyte', type: :request do
                as: :json
 
           expect(response).to have_http_status(:unprocessable_entity)
-          response_body = JSON.parse(response.body)
+          response_body = response.parsed_body
           expect(response_body['error']).to eq('Invalid message type. Action not permitted')
         end
       end
 
       context 'when message is an integration message' do
         before do
-          stub_request(:post, 'https://api.cluster.dyte.in/v1/organizations/org_id/meetings/m_id/participant')
+          stub_request(:post, 'https://api.dyte.io/v2/meetings/m_id/participants')
             .to_return(
               status: 200,
-              body: { success: true, data: { authResponse: { userAdded: true, id: 'random_uuid', auth_token: 'json-web-token' } } }.to_json,
+              body: { success: true, data: { id: 'random_uuid', auth_token: 'json-web-token' } }.to_json,
               headers: { 'Content-Type' => 'application/json' }
             )
         end
 
-        it 'returns authResponse' do
+        it 'returns auth_token' do
           post add_participant_to_meeting_api_v1_widget_integrations_dyte_url,
                headers: { 'X-Auth-Token' => token },
                params: { website_token: web_widget.website_token, message_id: integration_message.id },
                as: :json
 
           expect(response).to have_http_status(:success)
-          response_body = JSON.parse(response.body)
-          expect(response_body['authResponse']).to eq(
+          response_body = response.parsed_body
+          expect(response_body).to eq(
             {
-              'userAdded' => true, 'id' => 'random_uuid', 'auth_token' => 'json-web-token'
+              'id' => 'random_uuid', 'auth_token' => 'json-web-token'
             }
           )
         end

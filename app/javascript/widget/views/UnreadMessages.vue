@@ -1,9 +1,6 @@
-<template>
-  <unread-message-list :messages="messages" />
-</template>
-
 <script>
 import { mapGetters } from 'vuex';
+import { IFrameHelper } from 'widget/helpers/utils';
 import UnreadMessageList from '../components/UnreadMessageList.vue';
 
 export default {
@@ -16,5 +13,16 @@ export default {
       messages: 'conversation/getUnreadTextMessages',
     }),
   },
+  methods: {
+    closeFullView() {
+      if (IFrameHelper.isIFrame()) {
+        IFrameHelper.sendMessage({ event: 'toggleBubble' });
+      }
+    },
+  },
 };
 </script>
+
+<template>
+  <UnreadMessageList :messages="messages" @close="closeFullView" />
+</template>

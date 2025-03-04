@@ -7,13 +7,11 @@ require Rails.root.join 'spec/models/concerns/avatarable_shared.rb'
 RSpec.describe User do
   let!(:user) { create(:user) }
 
-  context 'validations' do
+  context 'with validations' do
     it { is_expected.to validate_presence_of(:email) }
-    it { is_expected.to validate_presence_of(:name) }
-    it { is_expected.to validate_length_of(:name).is_at_least(1) }
   end
 
-  context 'associations' do
+  context 'with associations' do
     it { is_expected.to have_many(:accounts).through(:account_users) }
     it { is_expected.to have_many(:account_users) }
     it { is_expected.to have_many(:assigned_conversations).class_name('Conversation').dependent(:nullify) }
@@ -34,6 +32,22 @@ RSpec.describe User do
 
     it { expect(user.pubsub_token).not_to be_nil }
     it { expect(user.saved_changes.keys).not_to eq('pubsub_token') }
+
+    context 'with rotate the pubsub_token' do
+      it 'changes the pubsub_token when password changes' do
+        pubsub_token = user.pubsub_token
+        user.password = Faker::Internet.password(special_characters: true)
+        user.save!
+        expect(user.pubsub_token).not_to eq(pubsub_token)
+      end
+
+      it 'will not change pubsub_token when other attributes change' do
+        pubsub_token = user.pubsub_token
+        user.name = Faker::Name.name
+        user.save!
+        expect(user.pubsub_token).to eq(pubsub_token)
+      end
+    end
   end
 
   describe 'hmac_identifier' do
@@ -54,7 +68,7 @@ RSpec.describe User do
     end
   end
 
-  context 'sso_auth_token' do
+  context 'with sso_auth_token' do
     it 'can generate multiple sso tokens which can be validated' do
       sso_auth_token1 = user.generate_sso_auth_token
       sso_auth_token2 = user.generate_sso_auth_token
@@ -87,6 +101,13 @@ RSpec.describe User do
     it 'mutates the value' do
       user.email = 'user@example.com'
       expect(user.will_save_change_to_email?).to be true
+    end
+  end
+
+  context 'when the supplied email is uppercase' do
+    it 'downcases the email on save' do
+      new_user = create(:user, email: 'Test123@test.com')
+      expect(new_user.email).to eq('test123@test.com')
     end
   end
 end

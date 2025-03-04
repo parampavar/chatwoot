@@ -1,3 +1,35 @@
+<script>
+export default {
+  props: {
+    popupMessage: {
+      type: String,
+      default: '',
+    },
+    routeText: {
+      type: String,
+      default: '',
+    },
+    hasCloseButton: {
+      type: Boolean,
+      default: true,
+    },
+    closeButtonText: {
+      type: String,
+      default: '',
+    },
+  },
+  emits: ['open', 'close'],
+  methods: {
+    onClickOpenPath() {
+      this.$emit('open');
+    },
+    onClickClose(e) {
+      this.$emit('close', e);
+    },
+  },
+};
+</script>
+
 <template>
   <div class="announcement-popup">
     <span v-if="popupMessage" class="popup-content">
@@ -19,41 +51,11 @@
     </div>
   </div>
 </template>
-<script>
-export default {
-  props: {
-    popupMessage: {
-      type: String,
-      default: '',
-    },
-    routeText: {
-      type: String,
-      default: '',
-    },
-    hasCloseButton: {
-      type: Boolean,
-      default: true,
-    },
-    closeButtonText: {
-      type: String,
-      default: '',
-    },
-  },
-  methods: {
-    onClickOpenPath() {
-      this.$emit('open');
-    },
-    onClickClose(e) {
-      this.$emit('close', e);
-    },
-  },
-};
-</script>
 
 <style lang="scss">
 .announcement-popup {
-  max-width: 24rem;
-  min-width: 16rem;
+  max-width: 15rem;
+  min-width: 10rem;
   display: flex;
   position: absolute;
   flex-direction: column;

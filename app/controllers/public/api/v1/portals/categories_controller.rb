@@ -1,11 +1,11 @@
-class Public::Api::V1::Portals::CategoriesController < PublicController
+class Public::Api::V1::Portals::CategoriesController < Public::Api::V1::Portals::BaseController
   before_action :ensure_custom_domain_request, only: [:show, :index]
   before_action :portal
   before_action :set_category, only: [:show]
   layout 'portal'
 
   def index
-    @categories = @portal.categories
+    @categories = @portal.categories.order(position: :asc)
   end
 
   def show; end
@@ -13,10 +13,9 @@ class Public::Api::V1::Portals::CategoriesController < PublicController
   private
 
   def set_category
-    @category = @portal.categories.find_by!(locale: params[:locale], slug: params[:category_slug])
-  end
+    @category = @portal.categories.find_by(locale: params[:locale], slug: params[:category_slug])
 
-  def portal
-    @portal ||= Portal.find_by!(slug: params[:slug], archived: false)
+    Rails.logger.info "Category: not found for slug: #{params[:category_slug]}"
+    render_404 && return if @category.blank?
   end
 end

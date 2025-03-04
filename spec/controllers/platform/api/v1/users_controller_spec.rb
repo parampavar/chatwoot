@@ -33,7 +33,7 @@ RSpec.describe 'Platform Users API', type: :request do
             headers: { api_access_token: platform_app.access_token.token }, as: :json
 
         expect(response).to have_http_status(:success)
-        data = JSON.parse(response.body)
+        data = response.parsed_body
         expect(data['email']).to eq(user.email)
         expect(data['custom_attributes']['test']).to eq('test')
       end
@@ -70,7 +70,7 @@ RSpec.describe 'Platform Users API', type: :request do
             headers: { api_access_token: platform_app.access_token.token }, as: :json
 
         expect(response).to have_http_status(:success)
-        data = JSON.parse(response.body)
+        data = response.parsed_body
         expect(data['url']).to include('email=dev%2Btesting%40chatwoot.com&sso_auth_token=')
       end
     end
@@ -94,16 +94,31 @@ RSpec.describe 'Platform Users API', type: :request do
     context 'when it is an authenticated platform app' do
       let(:platform_app) { create(:platform_app) }
 
-      it 'creates a new user and permissible for the user' do
-        expect do
-          post '/platform/api/v1/users/', params: { name: 'test', display_name: 'displaytest',
-                                                    email: 'test@test.com', password: 'Password1!',
-                                                    custom_attributes: { test: 'test_create' } },
-                                          headers: { api_access_token: platform_app.access_token.token }, as: :json
-        end.not_to enqueue_mail
+      it 'creates a new user and permissible for the user without sending an email' do
+        # TODO: enqueued mail check failes because of  : https://github.com/rspec/rspec-rails/pull/2793
+        # revert to this block when the issue is fixed
+
+        # expect do
+        #   post '/platform/api/v1/users/', params: { name: 'test', display_name: 'displaytest',
+        #                                             email: 'test@test.com', password: 'Password1!',
+        #                                             custom_attributes: { test: 'test_create' } },
+        #                                   headers: { api_access_token: platform_app.access_token.token }, as: :json
+        #   byebug
+        # end.not_to have_enqueued_mail
+
+        ##------ revert this block when the issue is fixed
+        post '/platform/api/v1/users/', params: { name: 'test', display_name: 'displaytest',
+                                                  email: 'test@test.com', password: 'Password1!',
+                                                  custom_attributes: { test: 'test_create' } },
+                                        headers: { api_access_token: platform_app.access_token.token }, as: :json
+        mail_jobs = ActiveJob::Base.queue_adapter.enqueued_jobs.select do |job|
+          job[:job] == 'ActionMailer::MailDeliveryJob'
+        end
+        expect(mail_jobs.count).to eq(0)
+        ##------ revert this block when the issue is fixed
 
         expect(response).to have_http_status(:success)
-        data = JSON.parse(response.body)
+        data = response.parsed_body
         expect(data).to match(
           hash_including(
             'name' => 'test',
@@ -123,7 +138,7 @@ RSpec.describe 'Platform Users API', type: :request do
                                         headers: { api_access_token: platform_app.access_token.token }, as: :json
 
         expect(response).to have_http_status(:success)
-        data = JSON.parse(response.body)
+        data = response.parsed_body
         expect(data['name']).to eq('old test')
         expect(platform_app.platform_app_permissibles.first.permissible_id).to eq data['id']
       end
@@ -162,7 +177,7 @@ RSpec.describe 'Platform Users API', type: :request do
                                                    headers: { api_access_token: platform_app.access_token.token }, as: :json
 
         expect(response).to have_http_status(:success)
-        data = JSON.parse(response.body)
+        data = response.parsed_body
         expect(data['name']).to eq('test123')
         expect(data['email']).to eq('newtestemail@test.com')
         expect(data['custom_attributes']['test']).to eq('test_update')

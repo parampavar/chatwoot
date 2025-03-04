@@ -2,7 +2,7 @@
 
 require 'rails_helper'
 
-RSpec.describe AdministratorNotifications::ChannelNotificationsMailer, type: :mailer do
+RSpec.describe AdministratorNotifications::ChannelNotificationsMailer do
   let(:class_instance) { described_class.new }
   let!(:account) { create(:account) }
   let!(:administrator) { create(:user, :administrator, email: 'agent1@example.com', account: account) }
@@ -17,6 +17,22 @@ RSpec.describe AdministratorNotifications::ChannelNotificationsMailer, type: :ma
 
     it 'renders the subject' do
       expect(mail.subject).to eq('Your Slack integration has expired')
+    end
+
+    it 'renders the receiver email' do
+      expect(mail.to).to eq([administrator.email])
+    end
+  end
+
+  describe 'dialogflow disconnect' do
+    let(:mail) { described_class.with(account: account).dialogflow_disconnect.deliver_now }
+
+    it 'renders the subject' do
+      expect(mail.subject).to eq('Your Dialogflow integration was disconnected')
+    end
+
+    it 'renders the content' do
+      expect(mail.body).to include('Your Dialogflow integration was disconnected because of permission issues.')
     end
 
     it 'renders the receiver email' do
@@ -49,6 +65,37 @@ RSpec.describe AdministratorNotifications::ChannelNotificationsMailer, type: :ma
 
     it 'renders the subject' do
       expect(mail.subject).to eq('Your Whatsapp connection has expired')
+    end
+
+    it 'renders the receiver email' do
+      expect(mail.to).to eq([administrator.email])
+    end
+  end
+
+  describe 'contact_import_complete' do
+    let!(:data_import) { build(:data_import, total_records: 10, processed_records: 10) }
+    let(:mail) { described_class.with(account: account).contact_import_complete(data_import).deliver_now }
+
+    it 'renders the subject' do
+      expect(mail.subject).to eq('Contact Import Completed')
+    end
+
+    it 'renders the processed records' do
+      expect(mail.body.encoded).to match('Number of records imported: 10')
+      expect(mail.body.encoded).to match('Number of records failed: 0')
+    end
+
+    it 'renders the receiver email' do
+      expect(mail.to).to eq([administrator.email])
+    end
+  end
+
+  describe 'contact_export_complete' do
+    let!(:file_url) { 'http://test.com/test' }
+    let(:mail) { described_class.with(account: account).contact_export_complete(file_url, administrator.email).deliver_now }
+
+    it 'renders the subject' do
+      expect(mail.subject).to eq("Your contact's export file is available to download.")
     end
 
     it 'renders the receiver email' do
