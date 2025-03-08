@@ -6,7 +6,7 @@
 #  access_token :string
 #  hook_type    :integer          default("account")
 #  settings     :jsonb
-#  status       :integer          default("disabled")
+#  status       :integer          default("enabled")
 #  created_at   :datetime         not null
 #  updated_at   :datetime         not null
 #  account_id   :integer
@@ -19,12 +19,15 @@ class Integrations::Hook < ApplicationRecord
 
   attr_readonly :app_id, :account_id, :inbox_id, :hook_type
   before_validation :ensure_hook_type
+
   validates :account_id, presence: true
   validates :app_id, presence: true
   validates :inbox_id, presence: true, if: -> { hook_type == 'inbox' }
   validate :validate_settings_json_schema
   validates :app_id, uniqueness: { scope: [:account_id], unless: -> { app.present? && app.params[:allow_multiple_hooks].present? } }
 
+  # TODO: This seems to be only used for slack at the moment
+  # We can add a validator when storing the integration settings and toggle this in future
   enum status: { disabled: 0, enabled: 1 }
 
   belongs_to :account
@@ -41,8 +44,21 @@ class Integrations::Hook < ApplicationRecord
     app_id == 'slack'
   end
 
+  def dialogflow?
+    app_id == 'dialogflow'
+  end
+
   def disable
     update(status: 'disabled')
+  end
+
+  def process_event(event)
+    case app_id
+    when 'openai'
+      Integrations::Openai::ProcessorService.new(hook: self, event: event).perform if app_id == 'openai'
+    else
+      { error: 'No processor found' }
+    end
   end
 
   private

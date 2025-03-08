@@ -2,7 +2,7 @@
 
 require 'rails_helper'
 
-RSpec.describe Campaign, type: :model do
+RSpec.describe Campaign do
   describe 'associations' do
     it { is_expected.to belong_to(:account) }
     it { is_expected.to belong_to(:inbox) }
@@ -112,6 +112,28 @@ RSpec.describe Campaign, type: :model do
         campaign.save!
         expect(campaign.reload.campaign_type).to eq 'ongoing'
       end
+    end
+  end
+
+  context 'when validating sender' do
+    let(:account) { create(:account) }
+    let(:user) { create(:user, account: account) }
+    let(:web_widget) { create(:channel_widget, account: account) }
+    let(:inbox) { create(:inbox, channel: web_widget, account: account) }
+
+    it 'allows sender from the same account' do
+      campaign = build(:campaign, inbox: inbox, account: account, sender: user)
+      expect(campaign).to be_valid
+    end
+
+    it 'does not allow sender from different account' do
+      other_account = create(:account)
+      other_user = create(:user, account: other_account)
+      campaign = build(:campaign, inbox: inbox, account: account, sender: other_user)
+      expect(campaign).not_to be_valid
+      expect(campaign.errors[:sender_id]).to include(
+        'must belong to the same account as the campaign'
+      )
     end
   end
 end

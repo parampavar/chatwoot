@@ -4,8 +4,10 @@ json.title article.title
 json.content article.content
 json.description article.description
 json.status article.status
+json.position article.position
 json.account_id article.account_id
 json.last_updated_at article.updated_at
+json.slug article.slug
 
 if article.portal.present?
   json.portal do
@@ -36,3 +38,5 @@ json.associated_articles do
     end
   end
 end
+
+json.link "hc/#{article.portal.slug}/articles/#{article.slug}"

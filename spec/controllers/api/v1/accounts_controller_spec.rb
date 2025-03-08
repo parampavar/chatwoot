@@ -61,10 +61,9 @@ RSpec.describe 'Accounts API', type: :request do
                params: params,
                as: :json
 
-          expect(AccountBuilder).to have_received(:new).with(params.merge(user_password: params[:password]))
-          expect(account_builder).to have_received(:perform)
+          expect(AccountBuilder).not_to have_received(:new)
           expect(response).to have_http_status(:forbidden)
-          expect(response.body).to eq({ message: I18n.t('errors.signup.failed') }.to_json)
+          expect(response.body).to eq({ message: I18n.t('errors.signup.invalid_params') }.to_json)
         end
       end
     end
@@ -137,6 +136,32 @@ RSpec.describe 'Accounts API', type: :request do
     end
   end
 
+  describe 'GET /api/v1/accounts/{account.id}/cache_keys' do
+    let(:account) { create(:account) }
+    let(:admin) { create(:user, account: account, role: :administrator) }
+
+    it 'returns cache_keys as expected' do
+      account.update(auto_resolve_duration: 30)
+
+      get "/api/v1/accounts/#{account.id}/cache_keys",
+          headers: admin.create_new_auth_token,
+          as: :json
+
+      expect(response).to have_http_status(:success)
+      expect(response.parsed_body['cache_keys'].keys).to match_array(%w[label inbox team])
+    end
+
+    it 'sets the appropriate cache headers' do
+      get "/api/v1/accounts/#{account.id}/cache_keys",
+          headers: admin.create_new_auth_token,
+          as: :json
+
+      expect(response.headers['Cache-Control']).to include('max-age=10')
+      expect(response.headers['Cache-Control']).to include('private')
+      expect(response.headers['Cache-Control']).to include('stale-while-revalidate=300')
+    end
+  end
+
   describe 'PUT /api/v1/accounts/{account.id}' do
     let(:account) { create(:account) }
     let(:agent) { create(:user, account: account, role: :agent) }
@@ -164,7 +189,10 @@ RSpec.describe 'Accounts API', type: :request do
         locale: 'en',
         domain: 'example.com',
         support_email: 'care@example.com',
-        auto_resolve_duration: 40
+        auto_resolve_duration: 40,
+        timezone: 'Asia/Kolkata',
+        industry: 'Technology',
+        company_size: '1-10'
       }
 
       it 'modifies an account' do
@@ -179,6 +207,29 @@ RSpec.describe 'Accounts API', type: :request do
         expect(account.reload.domain).to eq(params[:domain])
         expect(account.reload.support_email).to eq(params[:support_email])
         expect(account.reload.auto_resolve_duration).to eq(params[:auto_resolve_duration])
+
+        %w[timezone industry company_size].each do |attribute|
+          expect(account.reload.custom_attributes[attribute]).to eq(params[attribute.to_sym])
+        end
+      end
+
+      it 'updates onboarding step to invite_team if onboarding step is present in account custom attributes' do
+        account.update(custom_attributes: { onboarding_step: 'account_update' })
+        put "/api/v1/accounts/#{account.id}",
+            params: params,
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        expect(account.reload.custom_attributes['onboarding_step']).to eq('invite_team')
+      end
+
+      it 'will not update onboarding step if onboarding step is not present in account custom attributes' do
+        put "/api/v1/accounts/#{account.id}",
+            params: params,
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        expect(account.reload.custom_attributes['onboarding_step']).to be_nil
       end
 
       it 'Throws error 422' do
@@ -190,7 +241,7 @@ RSpec.describe 'Accounts API', type: :request do
             as: :json
 
         expect(response).to have_http_status(:unprocessable_entity)
-        json_response = JSON.parse(response.body)
+        json_response = response.parsed_body
         expect(json_response['message']).to eq('Name is too long (maximum is 255 characters)')
       end
     end

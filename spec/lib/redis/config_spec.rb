@@ -1,6 +1,6 @@
 require 'rails_helper'
 
-describe ::Redis::Config do
+describe Redis::Config do
   context 'when single redis instance is used' do
     let(:redis_url) { 'redis://my-redis-instance:6379' }
     let(:redis_pasword) { 'some-strong-password' }
@@ -14,7 +14,7 @@ describe ::Redis::Config do
 
     it 'checks for app redis config' do
       app_config = described_class.app
-      expect(app_config.keys).to match_array([:url, :password, :network_timeout, :reconnect_attempts, :ssl_params])
+      expect(app_config.keys).to contain_exactly(:url, :password, :timeout, :reconnect_attempts, :ssl_params)
       expect(app_config[:url]).to eq(redis_url)
       expect(app_config[:password]).to eq(redis_pasword)
     end
@@ -42,8 +42,13 @@ describe ::Redis::Config do
       end
     end
 
+    after do
+      # ensuring the redis config is unset and won't affect other tests
+      described_class.instance_variable_set(:@config, nil)
+    end
+
     it 'checks for app redis config' do
-      expect(described_class.app.keys).to match_array([:url, :password, :sentinels, :network_timeout, :reconnect_attempts, :ssl_params])
+      expect(described_class.app.keys).to contain_exactly(:url, :password, :sentinels, :timeout, :reconnect_attempts, :ssl_params)
       expect(described_class.app[:url]).to eq("redis://#{redis_master_name}")
       expect(described_class.app[:sentinels]).to match_array(expected_sentinels)
     end
@@ -59,8 +64,13 @@ describe ::Redis::Config do
         end
       end
 
+      after do
+        # ensuring the redis config is unset and won't affect other tests
+        described_class.instance_variable_set(:@config, nil)
+      end
+
       it 'checks for app redis config and sentinel passwords will be empty' do
-        expect(described_class.app.keys).to match_array([:url, :password, :sentinels, :network_timeout, :reconnect_attempts, :ssl_params])
+        expect(described_class.app.keys).to contain_exactly(:url, :password, :sentinels, :timeout, :reconnect_attempts, :ssl_params)
         expect(described_class.app[:url]).to eq("redis://#{redis_master_name}")
         expect(described_class.app[:sentinels]).to match_array(expected_sentinels.map { |s| s.except(:password) })
       end
@@ -77,8 +87,13 @@ describe ::Redis::Config do
         end
       end
 
+      after do
+        # ensuring the redis config is unset and won't affect other tests
+        described_class.instance_variable_set(:@config, nil)
+      end
+
       it 'checks for app redis config and redis password is replaced in sentinel config' do
-        expect(described_class.app.keys).to match_array([:url, :password, :sentinels, :network_timeout, :reconnect_attempts, :ssl_params])
+        expect(described_class.app.keys).to contain_exactly(:url, :password, :sentinels, :timeout, :reconnect_attempts, :ssl_params)
         expect(described_class.app[:url]).to eq("redis://#{redis_master_name}")
         expect(described_class.app[:sentinels]).to match_array(expected_sentinels.map { |s| s.merge(password: redis_sentinel_password) })
       end

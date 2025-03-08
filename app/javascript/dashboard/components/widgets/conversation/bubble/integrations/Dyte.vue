@@ -1,3 +1,44 @@
+<script>
+import DyteAPI from 'dashboard/api/integrations/dyte';
+import { buildDyteURL } from 'shared/helpers/IntegrationHelper';
+import { useAlert } from 'dashboard/composables';
+
+export default {
+  props: {
+    messageId: {
+      type: Number,
+      required: true,
+    },
+  },
+  data() {
+    return { isLoading: false, dyteAuthToken: '', isSDKMounted: false };
+  },
+  computed: {
+    meetingLink() {
+      return buildDyteURL(this.dyteAuthToken);
+    },
+  },
+  methods: {
+    async joinTheCall() {
+      this.isLoading = true;
+      try {
+        const { data: { token } = {} } = await DyteAPI.addParticipantToMeeting(
+          this.messageId
+        );
+        this.dyteAuthToken = token;
+      } catch (err) {
+        useAlert(this.$t('INTEGRATION_SETTINGS.DYTE.JOIN_ERROR'));
+      } finally {
+        this.isLoading = false;
+      }
+    },
+    leaveTheRoom() {
+      this.dyteAuthToken = '';
+    },
+  },
+};
+</script>
+
 <template>
   <div>
     <woot-button
@@ -28,51 +69,7 @@
     </div>
   </div>
 </template>
-<script>
-import DyteAPI from 'dashboard/api/integrations/dyte';
-import { buildDyteURL } from 'shared/helpers/IntegrationHelper';
-import alertMixin from 'shared/mixins/alertMixin';
 
-export default {
-  mixins: [alertMixin],
-  props: {
-    messageId: {
-      type: Number,
-      required: true,
-    },
-    meetingData: {
-      type: Object,
-      default: () => ({}),
-    },
-  },
-  data() {
-    return { isLoading: false, dyteAuthToken: '', isSDKMounted: false };
-  },
-  computed: {
-    meetingLink() {
-      return buildDyteURL(this.meetingData.room_name, this.dyteAuthToken);
-    },
-  },
-  methods: {
-    async joinTheCall() {
-      this.isLoading = true;
-      try {
-        const {
-          data: { authResponse: { authToken } = {} } = {},
-        } = await DyteAPI.addParticipantToMeeting(this.messageId);
-        this.dyteAuthToken = authToken;
-      } catch (err) {
-        this.showAlert(this.$t('INTEGRATION_SETTINGS.DYTE.JOIN_ERROR'));
-      } finally {
-        this.isLoading = false;
-      }
-    },
-    leaveTheRoom() {
-      this.dyteAuthToken = '';
-    },
-  },
-};
-</script>
 <style lang="scss">
 .join-call-button {
   margin: var(--space-small) 0;
@@ -97,7 +94,7 @@ export default {
   button {
     position: absolute;
     top: var(--space-smaller);
-    right: 16rem;
+    right: 10rem;
   }
 }
 </style>

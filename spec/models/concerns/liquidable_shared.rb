@@ -2,8 +2,8 @@ require 'rails_helper'
 
 shared_examples_for 'liqudable' do
   context 'when liquid is present in content' do
-    let(:contact) { create(:contact, name: 'john', phone_number: '+912883') }
-    let(:conversation) { create(:conversation, id: 1, contact: contact) }
+    let(:contact) { create(:contact, name: 'john', phone_number: '+912883', custom_attributes: { customer_type: 'platinum' }) }
+    let(:conversation) { create(:conversation, id: 1, contact: contact, custom_attributes: { priority: 'high' }) }
 
     context 'when message is incoming' do
       let(:message) { build(:message, conversation: conversation, message_type: 'incoming') }
@@ -21,7 +21,15 @@ shared_examples_for 'liqudable' do
       it 'set replaces liquid variables in message' do
         message.content = 'hey {{contact.name}} how are you?'
         message.save!
-        expect(message.content).to eq 'hey john how are you?'
+        expect(message.content).to eq 'hey John how are you?'
+      end
+
+      it 'set replaces liquid custom attributes in message' do
+        message.content = 'Are you a {{contact.custom_attribute.customer_type}} customer,
+        If yes then the priority is {{conversation.custom_attribute.priority}}'
+        message.save!
+        expect(message.content).to eq 'Are you a platinum customer,
+        If yes then the priority is high'
       end
 
       it 'process liquid operators like default value' do
@@ -45,19 +53,19 @@ shared_examples_for 'liqudable' do
       it 'will not process liquid tags in multiple code blocks' do
         message.content = 'hey {{contact.name}} how are you? ```code: {{contact.name}}``` ``` code: {{contact.name}} ``` test `{{contact.name}}`'
         message.save!
-        expect(message.content).to eq 'hey john how are you? ```code: {{contact.name}}``` ``` code: {{contact.name}} ``` test `{{contact.name}}`'
+        expect(message.content).to eq 'hey John how are you? ```code: {{contact.name}}``` ``` code: {{contact.name}} ``` test `{{contact.name}}`'
       end
 
       it 'will not process liquid tags in single ticks' do
         message.content = 'hey {{contact.name}} how are you? ` code: {{contact.name}} ` ` code: {{contact.name}} ` test'
         message.save!
-        expect(message.content).to eq 'hey john how are you? ` code: {{contact.name}} ` ` code: {{contact.name}} ` test'
+        expect(message.content).to eq 'hey John how are you? ` code: {{contact.name}} ` ` code: {{contact.name}} ` test'
       end
 
       it 'will not throw error for broken quotes' do
         message.content = 'hey {{contact.name}} how are you? ` code: {{contact.name}} ` ` code: {{contact.name}} test'
         message.save!
-        expect(message.content).to eq 'hey john how are you? ` code: {{contact.name}} ` ` code: john test'
+        expect(message.content).to eq 'hey John how are you? ` code: {{contact.name}} ` ` code: John test'
       end
     end
   end

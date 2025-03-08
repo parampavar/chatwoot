@@ -14,6 +14,8 @@ class ConversationApi extends ApiClient {
     labels,
     teamId,
     conversationType,
+    sortBy,
+    updatedWithin,
   }) {
     return axios.get(this.url, {
       params: {
@@ -24,6 +26,8 @@ class ConversationApi extends ApiClient {
         page,
         labels,
         conversation_type: conversationType,
+        sort_by: sortBy,
+        updated_within: updatedWithin,
       },
     });
   }
@@ -49,6 +53,12 @@ class ConversationApi extends ApiClient {
     return axios.post(`${this.url}/${conversationId}/toggle_status`, {
       status,
       snoozed_until: snoozedUntil,
+    });
+  }
+
+  togglePriority({ conversationId, priority }) {
+    return axios.post(`${this.url}/${conversationId}/toggle_priority`, {
+      priority,
     });
   }
 
@@ -118,6 +128,18 @@ class ConversationApi extends ApiClient {
     return axios.patch(`${this.url}/${conversationId}/participants`, {
       user_ids: userIds,
     });
+  }
+
+  getAllAttachments(conversationId) {
+    return axios.get(`${this.url}/${conversationId}/attachments`);
+  }
+
+  requestCopilot(conversationId, body) {
+    return axios.post(`${this.url}/${conversationId}/copilot`, body);
+  }
+
+  getInboxAssistant(conversationId) {
+    return axios.get(`${this.url}/${conversationId}/inbox_assistant`);
   }
 }
 

@@ -1,9 +1,12 @@
 class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseController
   include Events::Types
   include DateRangeHelper
+  include HmacConcern
 
   before_action :conversation, except: [:index, :meta, :search, :create, :filter]
   before_action :inbox, :contact, :contact_inbox, only: [:create]
+
+  ATTACHMENT_RESULTS_PER_PAGE = 100
 
   def index
     result = conversation_finder.perform
@@ -22,6 +25,17 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
     @conversations_count = result[:count]
   end
 
+  def attachments
+    @attachments_count = @conversation.attachments.count
+    @attachments = @conversation.attachments
+                                .includes(:message)
+                                .order(created_at: :desc)
+                                .page(attachment_params[:page])
+                                .per(ATTACHMENT_RESULTS_PER_PAGE)
+  end
+
+  def show; end
+
   def create
     ActiveRecord::Base.transaction do
       @conversation = ConversationBuilder.new(params: params, contact_inbox: @contact_inbox).perform
@@ -29,12 +43,19 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
     end
   end
 
-  def show; end
+  def update
+    @conversation.update!(permitted_update_params)
+  end
 
   def filter
     result = ::Conversations::FilterService.new(params.permit!, current_user).perform
     @conversations = result[:conversations]
     @conversations_count = result[:count]
+  rescue CustomExceptions::CustomFilter::InvalidAttribute,
+         CustomExceptions::CustomFilter::InvalidOperator,
+         CustomExceptions::CustomFilter::InvalidQueryOperator,
+         CustomExceptions::CustomFilter::InvalidValue => e
+    render_could_not_create_error(e.message)
   end
 
   def mute
@@ -55,22 +76,36 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   end
 
   def toggle_status
-    if params[:status]
+    # FIXME: move this logic into a service object
+    if pending_to_open_by_bot?
+      @conversation.bot_handoff!
+    elsif params[:status].present?
       set_conversation_status
       @status = @conversation.save!
     else
       @status = @conversation.toggle_status
     end
-    assign_conversation if @conversation.status == 'open' && Current.user.is_a?(User) && Current.user&.agent?
+    assign_conversation if should_assign_conversation?
+  end
+
+  def pending_to_open_by_bot?
+    return false unless Current.user.is_a?(AgentBot)
+
+    @conversation.status == 'pending' && params[:status] == 'open'
+  end
+
+  def should_assign_conversation?
+    @conversation.status == 'open' && Current.user.is_a?(User) && Current.user&.agent?
+  end
+
+  def toggle_priority
+    @conversation.toggle_priority(params[:priority])
+    head :ok
   end
 
   def toggle_typing_status
-    case params[:typing_status]
-    when 'on'
-      trigger_typing_event(CONVERSATION_TYPING_ON, params[:is_private])
-    when 'off'
-      trigger_typing_event(CONVERSATION_TYPING_OFF, params[:is_private])
-    end
+    typing_status_manager = ::Conversations::TypingStatusManager.new(@conversation, current_user, params)
+    typing_status_manager.toggle_typing_status
     head :ok
   end
 
@@ -91,6 +126,15 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
 
   private
 
+  def permitted_update_params
+    # TODO: Move the other conversation attributes to this method and remove specific endpoints for each attribute
+    params.permit(:priority)
+  end
+
+  def attachment_params
+    params.permit(:page)
+  end
+
   def update_last_seen_on_conversation(last_seen_at, update_assignee)
     # rubocop:disable Rails/SkipsModelValidations
     @conversation.update_column(:agent_last_seen_at, last_seen_at)
@@ -99,21 +143,13 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   end
 
   def set_conversation_status
-    # TODO: temporary fallback for the old bot status in conversation, we will remove after couple of releases
-    # commenting this out to see if there are any errors, if not we can remove this in subsequent releases
-    # status = params[:status] == 'bot' ? 'pending' : params[:status]
     @conversation.status = params[:status]
     @conversation.snoozed_until = parse_date_time(params[:snoozed_until].to_s) if params[:snoozed_until]
   end
 
   def assign_conversation
-    @agent = Current.account.users.find(current_user.id)
-    @conversation.update_assignee(@agent)
-  end
-
-  def trigger_typing_event(event, is_private)
-    user = current_user.presence || @resource
-    Rails.configuration.dispatcher.dispatch(event, Time.zone.now, conversation: @conversation, user: user, is_private: is_private)
+    @conversation.assignee = current_user
+    @conversation.save!
   end
 
   def conversation
@@ -142,6 +178,8 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
     # and deprecate the support of passing only source_id as the param
     @contact_inbox ||= ::ContactInbox.find_by!(source_id: params[:source_id])
     authorize @contact_inbox.inbox, :show?
+  rescue ActiveRecord::RecordNotUnique
+    render json: { error: 'source_id should be unique' }, status: :unprocessable_entity
   end
 
   def build_contact_inbox
@@ -150,7 +188,8 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
     ContactInboxBuilder.new(
       contact: @contact,
       inbox: @inbox,
-      source_id: params[:source_id]
+      source_id: params[:source_id],
+      hmac_verified: hmac_verified?
     ).perform
   end
 
@@ -162,3 +201,5 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
     @conversation.assignee_id? && Current.user == @conversation.assignee
   end
 end
+
+Api::V1::Accounts::ConversationsController.prepend_mod_with('Api::V1::Accounts::ConversationsController')

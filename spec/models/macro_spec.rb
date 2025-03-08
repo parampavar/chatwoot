@@ -1,8 +1,13 @@
 require 'rails_helper'
 
-RSpec.describe Macro, type: :model do
+RSpec.describe Macro do
   let(:account) { create(:account) }
   let(:admin) { create(:user, account: account, role: :administrator) }
+
+  after do
+    Current.user = nil
+    Current.account = nil
+  end
 
   describe 'associations' do
     it { is_expected.to belong_to(:account) }

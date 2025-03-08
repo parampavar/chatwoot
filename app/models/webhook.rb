@@ -26,7 +26,7 @@ class Webhook < ApplicationRecord
   enum webhook_type: { account_type: 0, inbox_type: 1 }
 
   ALLOWED_WEBHOOK_EVENTS = %w[conversation_status_changed conversation_updated conversation_created contact_created contact_updated
-                              message_created message_updated webwidget_triggered].freeze
+                              message_created message_updated webwidget_triggered inbox_created inbox_updated].freeze
 
   private
 
@@ -37,3 +37,5 @@ class Webhook < ApplicationRecord
     errors.add(:subscriptions, I18n.t('errors.webhook.invalid')) if invalid_subscriptions
   end
 end
+
+Webhook.include_mod_with('Audit::Webhook')

@@ -26,7 +26,7 @@ class CsatSurveyResponse < ApplicationRecord
   belongs_to :conversation
   belongs_to :contact
   belongs_to :message
-  belongs_to :assigned_agent, class_name: 'User', optional: true
+  belongs_to :assigned_agent, class_name: 'User', optional: true, inverse_of: :csat_survey_responses
 
   validates :rating, presence: true, inclusion: { in: [1, 2, 3, 4, 5] }
   validates :account_id, presence: true
@@ -35,4 +35,8 @@ class CsatSurveyResponse < ApplicationRecord
 
   scope :filter_by_created_at, ->(range) { where(created_at: range) if range.present? }
   scope :filter_by_assigned_agent_id, ->(user_ids) { where(assigned_agent_id: user_ids) if user_ids.present? }
+  scope :filter_by_inbox_id, ->(inbox_id) { joins(:conversation).where(conversations: { inbox_id: inbox_id }) if inbox_id.present? }
+  scope :filter_by_team_id, ->(team_id) { joins(:conversation).where(conversations: { team_id: team_id }) if team_id.present? }
+  # filter by rating value
+  scope :filter_by_rating, ->(rating) { where(rating: rating) if rating.present? }
 end

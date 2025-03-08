@@ -23,7 +23,7 @@ RSpec.describe 'Custom Attribute Definitions API', type: :request do
             as: :json
 
         expect(response).to have_http_status(:success)
-        response_body = JSON.parse(response.body)
+        response_body = response.parsed_body
 
         expect(response_body.count).to eq(2)
         expect(response_body.first['attribute_key']).to eq(custom_attribute_definition.attribute_key)
@@ -86,8 +86,32 @@ RSpec.describe 'Custom Attribute Definitions API', type: :request do
         end.to change(CustomAttributeDefinition, :count).by(1)
 
         expect(response).to have_http_status(:success)
-        json_response = JSON.parse(response.body)
+        json_response = response.parsed_body
         expect(json_response['attribute_key']).to eq 'developer_id'
+      end
+
+      context 'when creating with a conflicting attribute_key' do
+        let(:standard_key) { CustomAttributeDefinition::STANDARD_ATTRIBUTES[:conversation].first }
+        let(:conflicting_payload) do
+          {
+            custom_attribute_definition: {
+              attribute_display_name: 'Conflicting Key',
+              attribute_key: standard_key,
+              attribute_model: 'conversation_attribute',
+              attribute_display_type: 'text'
+            }
+          }
+        end
+
+        it 'returns error for conflicting key' do
+          post "/api/v1/accounts/#{account.id}/custom_attribute_definitions",
+               headers: user.create_new_auth_token,
+               params: conflicting_payload
+
+          expect(response).to have_http_status(:unprocessable_entity)
+          json_response = response.parsed_body
+          expect(json_response['message']).to include('The provided key is not allowed as it might conflict with default attributes.')
+        end
       end
     end
   end

@@ -6,6 +6,7 @@
     "LIST": {
       "404": "Det finns inga aktiva konversationer i denna grupp."
     },
+    "FAILED_TO_SEND": "Failed to send",
     "TAB_HEADING": "Konversationer",
     "MENTION_HEADING": "Mentions",
     "UNATTENDED_HEADING": "Unattended",
@@ -35,6 +36,48 @@
         "TEXT": "Alla"
       }
     },
+    "VIEW_FILTER": "Visa",
+    "SORT_TOOLTIP_LABEL": "Sort conversations",
+    "CHAT_SORT": {
+      "STATUS": "Status",
+      "ORDER_BY": "Order by"
+    },
+    "CHAT_TIME_STAMP": {
+      "CREATED": {
+        "LATEST": "Skapad",
+        "OLDEST": "Skapad den:"
+      },
+      "LAST_ACTIVITY": {
+        "NOT_ACTIVE": "Senaste aktivitet:",
+        "ACTIVE": "Senaste aktivitet"
+      }
+    },
+    "SORT_ORDER_ITEMS": {
+      "last_activity_at_asc": {
+        "TEXT": "Last activity: Oldest first"
+      },
+      "last_activity_at_desc": {
+        "TEXT": "Last activity: Newest first"
+      },
+      "created_at_desc": {
+        "TEXT": "Created at: Newest first"
+      },
+      "created_at_asc": {
+        "TEXT": "Created at: Oldest first"
+      },
+      "priority_desc": {
+        "TEXT": "Priority: Highest first"
+      },
+      "priority_asc": {
+        "TEXT": "Priority: Lowest first"
+      },
+      "waiting_since_asc": {
+        "TEXT": "Pending Response: Longest first"
+      },
+      "waiting_since_desc": {
+        "TEXT": "Pending Response: Shortest first"
+      }
+    },
     "ATTACHMENTS": {
       "image": {
         "CONTENT": "Bildmeddelande"
@@ -51,8 +94,32 @@
       "location": {
         "CONTENT": "Plats"
       },
+      "ig_reel": {
+        "CONTENT": "Instagram Reel"
+      },
       "fallback": {
         "CONTENT": "har delat en webbadress"
+      },
+      "contact": {
+        "CONTENT": "Shared contact"
+      }
+    },
+    "CHAT_SORT_BY_FILTER": {
+      "TITLE": "Sort conversation",
+      "DROPDOWN_TITLE": "Sort by",
+      "ITEMS": {
+        "LATEST": {
+          "NAME": "Last activity at",
+          "LABEL": "Last activity"
+        },
+        "CREATED_AT": {
+          "NAME": "Created at",
+          "LABEL": "Created at"
+        },
+        "LAST_USER_MESSAGE_AT": {
+          "NAME": "Last user message at",
+          "LABEL": "Senaste meddelandet"
+        }
       }
     },
     "RECEIVED_VIA_EMAIL": "Mottaget via e-post",
@@ -66,6 +133,7 @@
     "NO_CONTENT": "Inget innehåll tillgängligt",
     "HIDE_QUOTED_TEXT": "Dölj citerad text",
     "SHOW_QUOTED_TEXT": "Visa citerad text",
-    "MESSAGE_READ": "Read"
+    "MESSAGE_READ": "Read",
+    "SENDING": "Sending"
   }
 }

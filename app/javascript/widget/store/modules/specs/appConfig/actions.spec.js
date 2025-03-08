@@ -1,6 +1,6 @@
 import { actions } from '../../appConfig';
 
-const commit = jest.fn();
+const commit = vi.fn();
 describe('#actions', () => {
   describe('#setReferrerHost', () => {
     it('creates actions properly', () => {
@@ -22,6 +22,20 @@ describe('#actions', () => {
     it('creates actions properly', () => {
       actions.setWidgetColor({ commit }, '#eaeaea');
       expect(commit.mock.calls).toEqual([['SET_WIDGET_COLOR', '#eaeaea']]);
+    });
+  });
+
+  describe('#setColorScheme', () => {
+    it('creates actions for dark mode properly', () => {
+      actions.setColorScheme({ commit }, 'dark');
+      expect(commit.mock.calls).toEqual([['SET_COLOR_SCHEME', 'dark']]);
+    });
+  });
+
+  describe('#setRouteTransitionState', () => {
+    it('creates actions properly', () => {
+      actions.setRouteTransitionState({ commit }, false);
+      expect(commit.mock.calls).toEqual([['SET_ROUTE_UPDATE_STATE', false]]);
     });
   });
 });

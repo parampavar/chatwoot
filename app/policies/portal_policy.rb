@@ -27,7 +27,7 @@ class PortalPolicy < ApplicationPolicy
     @account_user.administrator?
   end
 
-  def attach_file?
+  def logo?
     @account_user.administrator?
   end
 
@@ -37,3 +37,5 @@ class PortalPolicy < ApplicationPolicy
     @record.first.members.include?(@user)
   end
 end
+
+PortalPolicy.prepend_mod_with('Enterprise::PortalPolicy')

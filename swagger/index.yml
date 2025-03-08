@@ -56,6 +56,7 @@ x-tagGroups:
       - Agents
       - Canned Responses
       - Contacts
+      - Contact Labels
       - Conversation Assignment
       - Conversation Labels
       - Conversations
@@ -69,8 +70,12 @@ x-tagGroups:
       - Teams
       - Webhooks
       - Automation Rule
+      - Help Center
   - name: Client
     tags:
       - Contacts API
       - Conversations API
       - Messages API
+  - name: Others
+    tags:
+      - CSAT Survey Page

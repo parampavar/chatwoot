@@ -35,14 +35,15 @@ class Messages::MentionService
         notification_type: 'conversation_mention',
         user: User.find(user_id),
         account: message.account,
-        primary_actor: message
+        primary_actor: message.conversation,
+        secondary_actor: message
       ).perform
     end
   end
 
   def add_mentioned_users_as_participants(validated_mentioned_ids)
     validated_mentioned_ids.each do |user_id|
-      message.conversation.conversation_participants.find_or_create_by!(user_id: user_id)
+      message.conversation.conversation_participants.find_or_create_by(user_id: user_id)
     end
   end
 end

@@ -16,5 +16,20 @@ FactoryBot.define do
       app_id { 'dyte' }
       settings { { api_key: 'api_key', organization_id: 'org_id' } }
     end
+
+    trait :google_translate do
+      app_id { 'google_translate' }
+      settings { { project_id: 'test', credentials: {} } }
+    end
+
+    trait :openai do
+      app_id { 'openai' }
+      settings { { api_key: 'api_key' } }
+    end
+
+    trait :linear do
+      app_id { 'linear' }
+      access_token { SecureRandom.hex }
+    end
   end
 end

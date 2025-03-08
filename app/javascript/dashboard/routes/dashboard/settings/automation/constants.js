@@ -2,6 +2,7 @@ import {
   OPERATOR_TYPES_1,
   OPERATOR_TYPES_2,
   OPERATOR_TYPES_3,
+  OPERATOR_TYPES_6,
 } from './operators';
 
 export const AUTOMATIONS = {
@@ -18,6 +19,13 @@ export const AUTOMATIONS = {
         key: 'content',
         name: 'Message Content',
         attributeI18nKey: 'MESSAGE_CONTAINS',
+        inputType: 'comma_separated_plain_text',
+        filterOperators: OPERATOR_TYPES_2,
+      },
+      {
+        key: 'email',
+        name: 'Email',
+        attributeI18nKey: 'EMAIL',
         inputType: 'plain_text',
         filterOperators: OPERATOR_TYPES_2,
       },
@@ -27,6 +35,20 @@ export const AUTOMATIONS = {
         attributeI18nKey: 'INBOX',
         inputType: 'multi_select',
         filterOperators: OPERATOR_TYPES_1,
+      },
+      {
+        key: 'conversation_language',
+        name: 'Conversation Language',
+        attributeI18nKey: 'CONVERSATION_LANGUAGE',
+        inputType: 'multi_select',
+        filterOperators: OPERATOR_TYPES_1,
+      },
+      {
+        key: 'phone_number',
+        name: 'Phone Number',
+        attributeI18nKey: 'PHONE_NUMBER',
+        inputType: 'plain_text',
+        filterOperators: OPERATOR_TYPES_6,
       },
     ],
     actions: [
@@ -44,6 +66,11 @@ export const AUTOMATIONS = {
         key: 'add_label',
         name: 'Add a label',
         attributeI18nKey: 'ADD_LABEL',
+      },
+      {
+        key: 'remove_label',
+        name: 'Remove a label',
+        attributeI18nKey: 'REMOVE_LABEL',
       },
       {
         key: 'send_email_to_team',
@@ -119,6 +146,13 @@ export const AUTOMATIONS = {
         filterOperators: OPERATOR_TYPES_1,
       },
       {
+        key: 'phone_number',
+        name: 'Phone Number',
+        attributeI18nKey: 'PHONE_NUMBER',
+        inputType: 'plain_text',
+        filterOperators: OPERATOR_TYPES_6,
+      },
+      {
         key: 'referer',
         name: 'Referrer Link',
         attributeI18nKey: 'REFERER_LINK',
@@ -126,9 +160,30 @@ export const AUTOMATIONS = {
         filterOperators: OPERATOR_TYPES_2,
       },
       {
+        key: 'email',
+        name: 'Email',
+        attributeI18nKey: 'EMAIL',
+        inputType: 'plain_text',
+        filterOperators: OPERATOR_TYPES_2,
+      },
+      {
         key: 'inbox_id',
         name: 'Inbox',
         attributeI18nKey: 'INBOX',
+        inputType: 'multi_select',
+        filterOperators: OPERATOR_TYPES_1,
+      },
+      {
+        key: 'conversation_language',
+        name: 'Conversation Language',
+        attributeI18nKey: 'CONVERSATION_LANGUAGE',
+        inputType: 'multi_select',
+        filterOperators: OPERATOR_TYPES_1,
+      },
+      {
+        key: 'priority',
+        name: 'Priority',
+        attributeI18nKey: 'PRIORITY',
         inputType: 'multi_select',
         filterOperators: OPERATOR_TYPES_1,
       },
@@ -229,6 +284,13 @@ export const AUTOMATIONS = {
         filterOperators: OPERATOR_TYPES_2,
       },
       {
+        key: 'phone_number',
+        name: 'Phone Number',
+        attributeI18nKey: 'PHONE_NUMBER',
+        inputType: 'plain_text',
+        filterOperators: OPERATOR_TYPES_6,
+      },
+      {
         key: 'assignee_id',
         name: 'Assignee',
         attributeI18nKey: 'ASSIGNEE_NAME',
@@ -243,9 +305,30 @@ export const AUTOMATIONS = {
         filterOperators: OPERATOR_TYPES_3,
       },
       {
+        key: 'email',
+        name: 'Email',
+        attributeI18nKey: 'EMAIL',
+        inputType: 'plain_text',
+        filterOperators: OPERATOR_TYPES_2,
+      },
+      {
         key: 'inbox_id',
         name: 'Inbox',
         attributeI18nKey: 'INBOX',
+        inputType: 'multi_select',
+        filterOperators: OPERATOR_TYPES_1,
+      },
+      {
+        key: 'conversation_language',
+        name: 'Conversation Language',
+        attributeI18nKey: 'CONVERSATION_LANGUAGE',
+        inputType: 'multi_select',
+        filterOperators: OPERATOR_TYPES_1,
+      },
+      {
+        key: 'priority',
+        name: 'Priority',
+        attributeI18nKey: 'PRIORITY',
         inputType: 'multi_select',
         filterOperators: OPERATOR_TYPES_1,
       },
@@ -318,6 +401,13 @@ export const AUTOMATIONS = {
         filterOperators: OPERATOR_TYPES_1,
       },
       {
+        key: 'email',
+        name: 'Email',
+        attributeI18nKey: 'EMAIL',
+        inputType: 'plain_text',
+        filterOperators: OPERATOR_TYPES_2,
+      },
+      {
         key: 'mail_subject',
         name: 'Email Subject',
         attributeI18nKey: 'MAIL_SUBJECT',
@@ -346,6 +436,13 @@ export const AUTOMATIONS = {
         filterOperators: OPERATOR_TYPES_3,
       },
       {
+        key: 'phone_number',
+        name: 'Phone Number',
+        attributeI18nKey: 'PHONE_NUMBER',
+        inputType: 'plain_text',
+        filterOperators: OPERATOR_TYPES_6,
+      },
+      {
         key: 'team_id',
         name: 'Team',
         attributeI18nKey: 'TEAM_NAME',
@@ -356,6 +453,20 @@ export const AUTOMATIONS = {
         key: 'inbox_id',
         name: 'Inbox',
         attributeI18nKey: 'INBOX',
+        inputType: 'multi_select',
+        filterOperators: OPERATOR_TYPES_1,
+      },
+      {
+        key: 'conversation_language',
+        name: 'Conversation Language',
+        attributeI18nKey: 'CONVERSATION_LANGUAGE',
+        inputType: 'multi_select',
+        filterOperators: OPERATOR_TYPES_1,
+      },
+      {
+        key: 'priority',
+        name: 'Priority',
+        attributeI18nKey: 'PRIORITY',
         inputType: 'multi_select',
         filterOperators: OPERATOR_TYPES_1,
       },
@@ -451,6 +562,11 @@ export const AUTOMATION_ACTION_TYPES = [
     inputType: 'multi_select',
   },
   {
+    key: 'remove_label',
+    label: 'Remove a label',
+    inputType: 'multi_select',
+  },
+  {
     key: 'send_email_to_team',
     label: 'Send an email to team',
     inputType: 'team_message',
@@ -489,5 +605,15 @@ export const AUTOMATION_ACTION_TYPES = [
     key: 'send_message',
     label: 'Send a message',
     inputType: 'textarea',
+  },
+  {
+    key: 'change_priority',
+    label: 'Change Priority',
+    inputType: 'search_select',
+  },
+  {
+    key: 'add_sla',
+    label: 'Add SLA',
+    inputType: 'search_select',
   },
 ];

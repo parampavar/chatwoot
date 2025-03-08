@@ -1,58 +1,10 @@
-<template>
-  <form class="row" @submit.prevent="onSubmit">
-    <div class="medium-12 columns">
-      <label :class="{ error: $v.url.$error }">
-        {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.END_POINT.LABEL') }}
-        <input
-          v-model.trim="url"
-          type="text"
-          name="url"
-          :placeholder="
-            $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.END_POINT.PLACEHOLDER')
-          "
-          @input="$v.url.$touch"
-        />
-        <span v-if="$v.url.$error" class="message">
-          {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.END_POINT.ERROR') }}
-        </span>
-      </label>
-      <label :class="{ error: $v.url.$error }" class="margin-bottom-small">
-        {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.SUBSCRIPTIONS.LABEL') }}
-      </label>
-      <div v-for="event in supportedWebhookEvents" :key="event">
-        <input
-          :id="event"
-          v-model="subscriptions"
-          type="checkbox"
-          :value="event"
-          name="subscriptions"
-          class="margin-right-small"
-        />
-        <span class="fs-small">
-          {{ `${getEventLabel(event)} (${event})` }}
-        </span>
-      </div>
-    </div>
-
-    <div class="modal-footer">
-      <div class="medium-12 columns">
-        <woot-button
-          :disabled="$v.$invalid || isSubmitting"
-          :is-loading="isSubmitting"
-        >
-          {{ submitLabel }}
-        </woot-button>
-        <woot-button class="button clear" @click.prevent="$emit('cancel')">
-          {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.CANCEL') }}
-        </woot-button>
-      </div>
-    </div>
-  </form>
-</template>
-
 <script>
-import { required, url, minLength } from 'vuelidate/lib/validators';
-import webhookMixin from './webhookMixin';
+import { useVuelidate } from '@vuelidate/core';
+import { required, url, minLength } from '@vuelidate/validators';
+import wootConstants from 'dashboard/constants/globals';
+import { getI18nKey } from 'dashboard/routes/dashboard/settings/helper/settingsHelper';
+
+const { EXAMPLE_WEBHOOK_URL } = wootConstants;
 
 const SUPPORTED_WEBHOOK_EVENTS = [
   'conversation_created',
@@ -66,7 +18,6 @@ const SUPPORTED_WEBHOOK_EVENTS = [
 ];
 
 export default {
-  mixins: [webhookMixin],
   props: {
     value: {
       type: Object,
@@ -80,6 +31,10 @@ export default {
       type: String,
       required: true,
     },
+  },
+  emits: ['submit', 'cancel'],
+  setup() {
+    return { v$: useVuelidate() };
   },
   validations: {
     url: {
@@ -98,6 +53,16 @@ export default {
       supportedWebhookEvents: SUPPORTED_WEBHOOK_EVENTS,
     };
   },
+  computed: {
+    webhookURLInputPlaceholder() {
+      return this.$t(
+        'INTEGRATION_SETTINGS.WEBHOOK.FORM.END_POINT.PLACEHOLDER',
+        {
+          webhookExampleURL: EXAMPLE_WEBHOOK_URL,
+        }
+      );
+    },
+  },
   methods: {
     onSubmit() {
       this.$emit('submit', {
@@ -105,6 +70,70 @@ export default {
         subscriptions: this.subscriptions,
       });
     },
+    getI18nKey,
   },
 };
 </script>
+
+<template>
+  <form class="flex flex-col w-full" @submit.prevent="onSubmit">
+    <div class="w-full">
+      <label :class="{ error: v$.url.$error }">
+        {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.END_POINT.LABEL') }}
+        <input
+          v-model="url"
+          type="text"
+          name="url"
+          :placeholder="webhookURLInputPlaceholder"
+          @input="v$.url.$touch"
+        />
+        <span v-if="v$.url.$error" class="message">
+          {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.END_POINT.ERROR') }}
+        </span>
+      </label>
+      <label :class="{ error: v$.url.$error }" class="mb-2">
+        {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.SUBSCRIPTIONS.LABEL') }}
+      </label>
+      <div class="flex flex-col gap-2.5 mb-4">
+        <div
+          v-for="event in supportedWebhookEvents"
+          :key="event"
+          class="flex items-center"
+        >
+          <input
+            :id="event"
+            v-model="subscriptions"
+            type="checkbox"
+            :value="event"
+            name="subscriptions"
+            class="mr-2"
+          />
+          <label :for="event" class="text-sm">
+            {{
+              `${$t(
+                getI18nKey(
+                  'INTEGRATION_SETTINGS.WEBHOOK.FORM.SUBSCRIPTIONS.EVENTS',
+                  event
+                )
+              )} (${event})`
+            }}
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex flex-row justify-end w-full gap-2 px-0 py-2">
+      <div class="w-full">
+        <woot-button
+          :disabled="v$.$invalid || isSubmitting"
+          :is-loading="isSubmitting"
+        >
+          {{ submitLabel }}
+        </woot-button>
+        <woot-button class="button clear" @click.prevent="$emit('cancel')">
+          {{ $t('INTEGRATION_SETTINGS.WEBHOOK.FORM.CANCEL') }}
+        </woot-button>
+      </div>
+    </div>
+  </form>
+</template>

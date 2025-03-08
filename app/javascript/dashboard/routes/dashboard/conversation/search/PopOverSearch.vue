@@ -1,73 +1,11 @@
-<template>
-  <div v-on-clickaway="closeSearch" class="search-wrap">
-    <div class="search-header--wrap">
-      <woot-sidemenu-icon v-if="!showSearchBox" />
-      <div class="search" :class="{ 'is-active': showSearchBox }">
-        <div class="icon">
-          <fluent-icon icon="search" class="search--icon" size="28" />
-        </div>
-        <input
-          v-model="searchTerm"
-          class="search--input"
-          :placeholder="$t('CONVERSATION.SEARCH_MESSAGES')"
-          @focus="onSearch"
-        />
-        <switch-layout
-          :is-on-expanded-layout="isOnExpandedLayout"
-          @toggle="$emit('toggle-conversation-layout')"
-        />
-      </div>
-    </div>
-    <div v-if="showSearchBox" class="results-wrap">
-      <div class="show-results">
-        <div>
-          <div class="result-view">
-            <div class="result">
-              {{ $t('CONVERSATION.SEARCH.RESULT_TITLE') }}
-              <span v-if="resultsCount" class="message-counter">
-                ({{ resultsCount }})
-              </span>
-            </div>
-            <div v-if="uiFlags.isFetching" class="search--activity-message">
-              <woot-spinner size="" />
-              {{ $t('CONVERSATION.SEARCH.LOADING_MESSAGE') }}
-            </div>
-          </div>
-
-          <div v-if="showSearchResult" class="search-results--container">
-            <result-item
-              v-for="conversation in conversations"
-              :key="conversation.messageId"
-              :conversation-id="conversation.id"
-              :user-name="conversation.contact.name"
-              :timestamp="conversation.created_at"
-              :messages="conversation.messages"
-              :search-term="searchTerm"
-              :inbox-name="conversation.inbox.name"
-            />
-          </div>
-          <div v-else-if="showEmptyResult" class="search--activity-no-message">
-            {{ $t('CONVERSATION.SEARCH.NO_MATCHING_RESULTS') }}
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-
 <script>
-import { mixin as clickaway } from 'vue-clickaway';
 import { mapGetters } from 'vuex';
-import timeMixin from '../../../../mixins/time';
-import ResultItem from './ResultItem';
-import messageFormatterMixin from 'shared/mixins/messageFormatterMixin';
 import SwitchLayout from './SwitchLayout.vue';
+import { frontendURL } from 'dashboard/helper/URLHelper';
 export default {
   components: {
-    ResultItem,
     SwitchLayout,
   },
-
   directives: {
     focus: {
       inserted(el) {
@@ -75,187 +13,65 @@ export default {
       },
     },
   },
-
-  mixins: [timeMixin, messageFormatterMixin, clickaway],
-
   props: {
     isOnExpandedLayout: {
       type: Boolean,
       required: true,
     },
   },
-
-  data() {
-    return {
-      searchTerm: '',
-      showSearchBox: false,
-    };
-  },
-
+  emits: ['toggleConversationLayout'],
   computed: {
     ...mapGetters({
-      conversations: 'conversationSearch/getConversations',
-      uiFlags: 'conversationSearch/getUIFlags',
-      currentPage: 'conversationPage/getCurrentPage',
+      accountId: 'getCurrentAccountId',
     }),
-    resultsCount() {
-      return this.conversations.length;
-    },
-    showSearchResult() {
-      return (
-        this.searchTerm && this.conversations.length && !this.uiFlags.isFetching
-      );
-    },
-    showEmptyResult() {
-      return (
-        this.searchTerm &&
-        !this.conversations.length &&
-        !this.uiFlags.isFetching
-      );
-    },
-  },
-
-  watch: {
-    searchTerm(newValue) {
-      if (this.typingTimer) {
-        clearTimeout(this.typingTimer);
-      }
-
-      this.typingTimer = setTimeout(() => {
-        this.hasSearched = true;
-        this.$store.dispatch('conversationSearch/get', { q: newValue });
-      }, 1000);
-    },
-    currentPage() {
-      this.clearSearchTerm();
-    },
-  },
-
-  mounted() {
-    this.$store.dispatch('conversationSearch/get', { q: '' });
-    bus.$on('clearSearchInput', () => {
-      this.clearSearchTerm();
-    });
-  },
-
-  methods: {
-    onSearch() {
-      this.showSearchBox = true;
-    },
-    closeSearch() {
-      this.showSearchBox = false;
-    },
-    clearSearchTerm() {
-      this.searchTerm = '';
+    searchUrl() {
+      return frontendURL(`accounts/${this.accountId}/search`);
     },
   },
 };
 </script>
 
+<template>
+  <div class="relative">
+    <div
+      class="flex px-4 pb-1 justify-between items-center flex-row gap-1 pt-2.5 border-b border-transparent"
+    >
+      <woot-sidemenu-icon
+        size="tiny"
+        class="relative top-0 ltr:-ml-1.5 rtl:-mr-1.5 flex-shrink-0 focus:!bg-n-solid-3 dark:!hover:bg-n-solid-2 hover:!bg-n-alpha-2"
+      />
+      <router-link
+        :to="searchUrl"
+        class="inline-flex items-center flex-1 h-6 min-w-0 gap-1 px-2 py-0 text-left rounded-md rtl:mr-2.5 search-link rtl:text-right bg-n-slate-9/10 hover:bg-n-slate-3"
+      >
+        <div class="flex flex-shrink-0">
+          <fluent-icon
+            icon="search"
+            class="search--icon text-n-slate-11"
+            size="16"
+          />
+        </div>
+        <p
+          class="mb-0 overflow-hidden text-sm search--label whitespace-nowrap text-ellipsis text-n-slate-11"
+        >
+          {{ $t('CONVERSATION.SEARCH_MESSAGES') }}
+        </p>
+      </router-link>
+      <SwitchLayout
+        :is-on-expanded-layout="isOnExpandedLayout"
+        @toggle="$emit('toggleConversationLayout')"
+      />
+    </div>
+  </div>
+</template>
+
 <style lang="scss" scoped>
-.search-wrap {
-  position: relative;
-  padding: var(--space-one) var(--space-normal) var(--space-smaller)
-    var(--space-normal);
-}
-
-.search-header--wrap {
-  display: flex;
-  justify-content: space-between;
-  min-height: var(--space-large);
-}
-
-.search {
-  display: flex;
-  flex: 1;
-  padding: 0;
-  border-bottom: 1px solid transparent;
-
+.search-link {
   &:hover {
-    .search--icon {
-      color: var(--w-500);
+    .search--icon,
+    .search--label {
+      @apply hover:text-woot-500 dark:hover:text-woot-500;
     }
   }
-}
-
-.search--input {
-  align-items: center;
-  border: 0;
-  color: var(--color-body);
-  cursor: pointer;
-  width: 100%;
-  display: flex;
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-normal);
-  text-align: left;
-  line-height: var(--font-size-large);
-}
-
-.search--icon {
-  color: var(--s-600);
-  font-size: var(--font-size-large);
-  padding: 0 var(--space-small) 0 0;
-}
-
-.icon {
-  display: flex;
-}
-
-input::placeholder {
-  color: var(--color-body);
-  font-size: var(--font-size-small);
-}
-
-.results-wrap {
-  position: absolute;
-  z-index: 9999;
-  box-shadow: var(--shadow-large);
-  background: white;
-  width: 100%;
-  max-height: 70vh;
-  overflow: auto;
-  left: 0;
-}
-
-.show-results {
-  list-style-type: none;
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-normal);
-}
-
-.result-view {
-  display: flex;
-  justify-content: space-between;
-}
-
-.result {
-  padding: var(--space-smaller) var(--space-smaller) var(--space-smaller)
-    var(--space-normal);
-  color: var(--s-700);
-  font-size: var(--font-size-medium);
-  font-weight: var(--font-weight-bold);
-
-  .message-counter {
-    color: var(--s-500);
-    font-size: var(--font-size-small);
-    font-weight: var(--font-weight-bold);
-  }
-}
-
-.search--activity-message {
-  padding: var(--space-small) var(--space-normal) var(--space-small)
-    var(--space-zero);
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-medium);
-  color: var(--s-500);
-}
-
-.search--activity-no-message {
-  display: flex;
-  justify-content: center;
-  padding: var(--space-one) var(--space-zero) var(--space-two) var(--space-zero);
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-medium);
-  color: var(--s-500);
 }
 </style>

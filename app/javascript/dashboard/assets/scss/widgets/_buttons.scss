@@ -1,215 +1,228 @@
-$default-button-height: 4.0rem;
+// scss-lint:disable SpaceAfterPropertyColon
+// scss-lint:disable MergeableSelector
+button {
+  font-family: inherit;
+  transition:
+    background-color 0.25s ease-out,
+    color 0.25s ease-out;
+  @apply inline-block items-center mb-0 text-center align-middle cursor-pointer text-sm mt-0 mx-0 py-1 px-2.5 border border-solid border-transparent dark:border-transparent rounded-[0.3125rem];
+
+  &:disabled,
+  &.disabled {
+    @apply opacity-40 cursor-not-allowed;
+  }
+}
+
+.button-group {
+  @apply mb-0 flex flex-nowrap items-stretch;
+
+  .button {
+    flex: 0 0 auto;
+    @apply m-0 text-sm rounded-none first:rounded-tl-[0.3125rem] first:rounded-bl-[0.3125rem] last:rounded-tr-[0.3125rem] last:rounded-br-[0.3125rem] rtl:space-x-reverse;
+  }
+
+  .button--only-icon {
+    @apply w-10 justify-center pl-0 pr-0;
+  }
+}
+
+.back-button {
+  @apply m-0;
+}
 
 .button {
-  align-items: center;
-  display: inline-flex;
-  height: $default-button-height;
-  margin-bottom: 0;
+  @apply items-center bg-n-brand px-2.5 text-white dark:text-white inline-flex h-10 mb-0 gap-2 font-medium;
 
   .button__content {
-    width: 100%;
+    @apply w-full whitespace-nowrap overflow-hidden text-ellipsis;
+
+    img,
+    svg {
+      @apply inline-block;
+    }
+  }
+
+  &:hover:not(.secondary):not(.success):not(.alert):not(.warning):not(
+      .clear
+    ):not(.smooth):not(.hollow) {
+    @apply bg-n-brand/80 dark:bg-n-brand/80;
+  }
+
+  &:disabled,
+  &.disabled {
+    @apply opacity-40 cursor-not-allowed;
+  }
+
+  &.success {
+    @apply bg-n-teal-9 text-white dark:text-white;
+  }
+
+  &.secondary {
+    @apply bg-n-solid-3 text-white dark:text-white;
+  }
+
+  &.primary {
+    @apply bg-n-brand text-white dark:text-white;
+  }
+
+  &.clear {
+    @apply text-n-blue-text dark:text-n-blue-text bg-transparent dark:bg-transparent;
+  }
+
+  &.alert {
+    @apply bg-n-ruby-9 text-white dark:text-white;
+
+    &.clear {
+      @apply bg-transparent dark:bg-transparent;
+    }
+  }
+
+  &.warning {
+    @apply bg-n-amber-9 text-white dark:text-white;
+
+    &.clear {
+      @apply bg-transparent dark:bg-transparent;
+    }
+  }
+
+  &.tiny {
+    @apply h-6 text-[10px];
+  }
+
+  &.small {
+    @apply h-8 text-xs;
   }
 
   .spinner {
-    padding: 0 var(--space-small);
-  }
-
-  .icon--emoji+.button__content {
-    padding-left: var(--space-small);
-  }
-
-  .icon--font+.button__content {
-    padding-left: var(--space-small);
+    @apply px-2 py-0;
   }
 
   // @TODDO - Remove after moving all buttons to woot-button
-  .icon+.button__content {
-    padding-left: var(--space-small);
-    width: auto;
+  .icon + .button__content {
+    @apply w-auto;
   }
 
   &.expanded {
-    display: flex;
-    justify-content: center;
+    @apply flex justify-center text-center;
   }
 
   &.round {
-    border-radius: $space-larger;
+    @apply rounded-full;
   }
 
   // @TODO Use with link
 
   &.compact {
-    padding-bottom: 0;
-    padding-top: 0;
+    @apply pb-0 pt-0;
   }
 
   &.hollow {
-    border-color: var(--s-200);
-    color: var(--w-700);
+    @apply border border-n-brand/40 bg-transparent text-n-blue-text hover:bg-n-brand/20;
 
     &.secondary {
-      border-color: var(--s-200);
-      color: var(--s-700)
+      @apply text-n-slate-12 border-n-slate-5 hover:bg-n-slate-5;
     }
 
     &.success {
-      border-color: var(--s-200);
-      color: var(--g-700)
+      @apply text-n-teal-9 border-n-teal-8 hover:bg-n-teal-5;
     }
 
     &.alert {
-      border-color: var(--s-200);
-      color: var(--r-700)
+      @apply text-n-ruby-9 border-n-ruby-8 hover:bg-n-ruby-5;
     }
 
     &.warning {
-      border-color: var(--s-200);
-      color: var(--y-700)
-    }
-
-    &:hover {
-      background: var(--s-75);
-      border-color: var(--s-100);
-
-      &.secondary {
-        border-color: var(--s-100);
-      }
-
-      &.success {
-        border-color: var(--s-100);
-      }
-
-      &.alert {
-        border-color: var(--s-100);
-      }
-
-      &.warning {
-        border-color: var(--s-100);
-      }
+      @apply text-n-amber-9 border-n-amber-8 hover:bg-n-amber-5;
     }
   }
 
   // Smooth style
   &.smooth {
-    @include button-style(var(--w-50), var(--w-100), var(--w-700));
-
+    @apply bg-n-brand/10 dark:bg-n-brand/30 text-n-blue-text hover:bg-n-brand/20 dark:hover:bg-n-brand/40;
 
     &.secondary {
-      @include button-style(var(--s-50), var(--s-100), var(--s-700));
+      @apply bg-n-slate-4 text-n-slate-11 hover:text-n-slate-11 hover:bg-n-slate-5;
     }
 
     &.success {
-      @include button-style(var(--g-50), var(--g-100), var(--g-700));
+      @apply bg-n-teal-4 text-n-teal-11 hover:text-n-teal-11 hover:bg-n-teal-5;
     }
 
     &.alert {
-      @include button-style(var(--r-50), var(--r-100), var(--r-700));
+      @apply bg-n-ruby-4 text-n-ruby-11 hover:text-n-ruby-11 hover:bg-n-ruby-5;
     }
 
     &.warning {
-      @include button-style(var(--y-100), var(--y-200), var(--y-700));
+      @apply bg-n-amber-4 text-n-amber-11 hover:text-n-amber-11 hover:bg-n-amber-5;
     }
   }
 
   &.clear {
-    color: var(--w-700);
+    @apply text-n-blue-text hover:bg-n-brand/10 dark:hover:bg-n-brand/30;
 
     &.secondary {
-      color: var(--s-700)
+      @apply text-n-slate-12 hover:bg-n-slate-4;
     }
 
     &.success {
-      color: var(--g-700)
+      @apply text-n-teal-10 hover:bg-n-teal-4;
     }
 
     &.alert {
-      color: var(--r-700)
+      @apply text-n-ruby-11 hover:bg-n-ruby-4;
     }
 
     &.warning {
-      color: var(--y-700)
+      @apply text-n-amber-11 hover:bg-n-amber-4;
     }
 
-    &:hover {
-      background: var(--w-50);
-
+    &:active {
       &.secondary {
-        background: var(--s-50);
+        @apply active:bg-n-slate-3 dark:active:bg-n-slate-7;
       }
+    }
 
-      &.success {
-        background: var(--g-50);
-      }
-
-      &.alert {
-        background: var(--r-50);
-      }
-
-      &.warning {
-        background: var(--y-50);
+    &:focus {
+      &.secondary {
+        @apply focus:bg-n-slate-4 dark:focus:bg-n-slate-6;
       }
     }
   }
 
   // Sizes
   &.tiny {
-    height: var(--space-medium);
-
-    .icon+.button__content {
-      padding-left: var(--space-micro);
-    }
+    @apply h-6;
   }
 
   &.small {
-    height: var(--space-large);
-    padding-bottom: var(--space-smaller);
-    padding-top: var(--space-smaller);
-
-    .icon+.button__content {
-      padding-left: var(--space-smaller);
-    }
+    @apply h-8 pb-1 pt-1;
   }
 
   &.large {
-    height: var(--space-larger);
+    @apply h-12;
   }
 
   &.button--only-icon {
-    justify-content: center;
-    padding-left: 0;
-    padding-right: 0;
-    width: $default-button-height;
+    @apply justify-center pl-0 pr-0 w-10;
 
     &.tiny {
-      width: var(--space-medium);
+      @apply w-6;
     }
 
     &.small {
-      width: var(--space-large);
+      @apply w-8;
     }
 
     &.large {
-      width: var(--space-larger);
+      @apply w-12;
     }
   }
 
   &.link {
-    height: auto;
-    margin: 0;
-    padding: 0;
+    @apply h-auto m-0 p-0;
 
     &:hover {
-      text-decoration: underline;
+      @apply underline;
     }
   }
-
-}
-
-
-// @TDOD move to utility file
-.button--fixed-right-top {
-  position: fixed;
-  right: $space-small;
-  top: $space-small;
 }

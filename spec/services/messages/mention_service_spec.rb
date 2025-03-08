@@ -32,7 +32,8 @@ describe Messages::MentionService do
       expect(NotificationBuilder).to have_received(:new).with(notification_type: 'conversation_mention',
                                                               user: first_agent,
                                                               account: account,
-                                                              primary_actor: message)
+                                                              primary_actor: message.conversation,
+                                                              secondary_actor: message)
     end
   end
 
@@ -55,16 +56,18 @@ describe Messages::MentionService do
       expect(NotificationBuilder).to have_received(:new).with(notification_type: 'conversation_mention',
                                                               user: second_agent,
                                                               account: account,
-                                                              primary_actor: message)
+                                                              primary_actor: message.conversation,
+                                                              secondary_actor: message)
       expect(NotificationBuilder).to have_received(:new).with(notification_type: 'conversation_mention',
                                                               user: first_agent,
                                                               account: account,
-                                                              primary_actor: message)
+                                                              primary_actor: message.conversation,
+                                                              secondary_actor: message)
     end
 
     it 'add the users to the participants list' do
       described_class.new(message: message).perform
-      expect(conversation.conversation_participants.map(&:user_id)).to match_array([first_agent.id, second_agent.id])
+      expect(conversation.conversation_participants.map(&:user_id)).to contain_exactly(first_agent.id, second_agent.id)
     end
   end
 end

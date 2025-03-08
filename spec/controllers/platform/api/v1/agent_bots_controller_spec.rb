@@ -24,7 +24,7 @@ RSpec.describe 'Platform Agent Bot API', type: :request do
       it 'returns unauthorized when its not a permissible object' do
         get '/platform/api/v1/agent_bots', headers: { api_access_token: platform_app.access_token.token }, as: :json
         expect(response).to have_http_status(:success)
-        data = JSON.parse(response.body)
+        data = response.parsed_body
         expect(data.length).to eq(0)
       end
 
@@ -35,7 +35,7 @@ RSpec.describe 'Platform Agent Bot API', type: :request do
             headers: { api_access_token: platform_app.access_token.token }, as: :json
 
         expect(response).to have_http_status(:success)
-        data = JSON.parse(response.body)
+        data = response.parsed_body
         expect(data.length).to eq(1)
       end
     end
@@ -71,7 +71,7 @@ RSpec.describe 'Platform Agent Bot API', type: :request do
             headers: { api_access_token: platform_app.access_token.token }, as: :json
 
         expect(response).to have_http_status(:success)
-        data = JSON.parse(response.body)
+        data = response.parsed_body
         expect(data['name']).to eq(agent_bot.name)
       end
     end
@@ -100,7 +100,7 @@ RSpec.describe 'Platform Agent Bot API', type: :request do
                                              headers: { api_access_token: platform_app.access_token.token }, as: :json
 
         expect(response).to have_http_status(:success)
-        data = JSON.parse(response.body)
+        data = response.parsed_body
         expect(data['name']).to eq('test')
         expect(platform_app.platform_app_permissibles.first.permissible_id).to eq data['id']
       end
@@ -137,8 +137,28 @@ RSpec.describe 'Platform Agent Bot API', type: :request do
                                                              headers: { api_access_token: platform_app.access_token.token }, as: :json
 
         expect(response).to have_http_status(:success)
-        data = JSON.parse(response.body)
+        data = response.parsed_body
         expect(data['name']).to eq('test123')
+      end
+
+      it 'updates avatar' do
+        # no avatar before upload
+        create(:platform_app_permissible, platform_app: platform_app, permissible: agent_bot)
+        expect(agent_bot.avatar.attached?).to be(false)
+        file = fixture_file_upload(Rails.root.join('spec/assets/avatar.png'), 'image/png')
+        patch "/platform/api/v1/agent_bots/#{agent_bot.id}", params: { name: 'test123' }.merge(avatar: file),
+                                                             headers: { api_access_token: platform_app.access_token.token }
+        expect(response).to have_http_status(:success)
+        agent_bot.reload
+        expect(agent_bot.avatar.attached?).to be(true)
+      end
+
+      it 'updated avatar with avatar_url' do
+        create(:platform_app_permissible, platform_app: platform_app, permissible: agent_bot)
+        patch "/platform/api/v1/agent_bots/#{agent_bot.id}", params: { name: 'test123' }.merge(avatar_url: 'http://example.com/avatar.png'),
+                                                             headers: { api_access_token: platform_app.access_token.token }
+        expect(response).to have_http_status(:success)
+        expect(Avatar::AvatarFromUrlJob).to have_been_enqueued.with(agent_bot, 'http://example.com/avatar.png')
       end
     end
   end
@@ -166,6 +186,34 @@ RSpec.describe 'Platform Agent Bot API', type: :request do
 
         expect(response).to have_http_status(:success)
         expect(AgentBot.count).to eq 0
+      end
+    end
+  end
+
+  describe 'DELETE /platform/api/v1/agent_bots/{agent_bot_id}/avatar' do
+    context 'when it is an unauthenticated user' do
+      it 'returns unauthorized' do
+        delete "/platform/api/v1/agent_bots/#{agent_bot.id}/avatar"
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when it is an authenticated user' do
+      let(:platform_app) { create(:platform_app) }
+
+      before do
+        agent_bot.avatar.attach(io: Rails.root.join('spec/assets/avatar.png').open, filename: 'avatar.png', content_type: 'image/png')
+        create(:platform_app_permissible, platform_app: platform_app, permissible: agent_bot)
+      end
+
+      it 'delete agent_bot avatar' do
+        delete "/platform/api/v1/agent_bots/#{agent_bot.id}/avatar",
+               headers: { api_access_token: platform_app.access_token.token },
+               as: :json
+
+        expect { agent_bot.avatar.attachment.reload }.to raise_error(ActiveRecord::RecordNotFound)
+        expect(response).to have_http_status(:success)
       end
     end
   end
